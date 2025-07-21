@@ -1,27 +1,23 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:api_testing/models/models.dart';
+import 'package:http/http.dart' as http;
 
-class QuoteService {
-  static const String baseUrl =
-      'https://gomezmig03.github.io/MotivationalAPI/en.json';
-  static Future<List<Quote>> fetchQuote() async {
-    final response = await http.get(Uri.parse(baseUrl));
+class CommentService {
+  final String baseUrl = 'https://jsonplaceholder.typicode.com/comments';
+
+  Future<List<CommentModel>> fetchComments({
+    required int page,
+    required int limit,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl?_page=$page&_limit=$limit'),
+    );
+
     if (response.statusCode == 200) {
-      final List<dynamic> jsonData = jsonDecode(response.body);
-      return jsonData.map((quote) => Quote.fromJson(quote)).toList();
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => CommentModel.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load quote');
+      throw Exception("Failed to fetch comments");
     }
-  }
-
-
-  static Future<List<Quote>> fetchQuotes(int count, {int offset = 0}) async {
-    final allQuotes = await fetchQuote();
-    if (offset >= allQuotes.length) {
-      return [];
-    }
-    final end = (offset + count) > allQuotes.length ? allQuotes.length : (offset + count);
-    return allQuotes.sublist(offset, end);
   }
 }
