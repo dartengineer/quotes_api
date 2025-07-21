@@ -1,44 +1,62 @@
-// quote_screen.dart
 import 'package:api_testing/models/models.dart';
 import 'package:api_testing/services/service.dart';
 import 'package:flutter/material.dart';
 
-class QuoteScreen extends StatefulWidget {
-  const QuoteScreen({super.key});
+class CommentsPage extends StatefulWidget {
+  const CommentsPage({super.key});
 
   @override
-  State<QuoteScreen> createState() => _QuoteScreenState();
+  // ignore: library_private_types_in_public_api
+  _CommentsPageState createState() => _CommentsPageState();
 }
 
-class _QuoteScreenState extends State<QuoteScreen> {
+class _CommentsPageState extends State<CommentsPage> {
   final ScrollController _scrollController = ScrollController();
-  final List<Quote> _quotes = [];
+  List<CommentModel> _comments = [];
+  final CommentService _commentService = CommentService();
+
+  int _page = 1;
+  final int _limit = 10;
   bool _isLoading = false;
+  bool _hasMore = true;
 
   @override
   void initState() {
     super.initState();
-    _loadMoreQuotes();
+    _fetchComments();
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
-              _scrollController.position.maxScrollExtent - 50 &&
-          !_isLoading) {
-        _loadMoreQuotes();
+              _scrollController.position.maxScrollExtent - 100 &&
+          !_isLoading &&
+          _hasMore) {
+        _fetchComments();
       }
     });
   }
 
-  Future<void> _loadMoreQuotes() async {
+  Future<void> _fetchComments() async {
     setState(() => _isLoading = true);
-    final newQuotes = await QuoteService.fetchQuotes(
-      10,
-      offset: _quotes.length,
-    );
-    setState(() {
-      _quotes.addAll(newQuotes);
-      _isLoading = false;
-    });
+
+    try {
+      final newComments = await _commentService.fetchComments(
+        page: _page,
+        limit: _limit,
+      );
+
+      setState(() {
+        _comments = [..._comments, ...newComments];
+        _page++;
+        _isLoading = false;
+
+        if (newComments.length < _limit) {
+          _hasMore = false;
+        }
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      debugPrint("Error fetching comments: $e");
+    }
   }
 
   @override
@@ -47,50 +65,32 @@ class _QuoteScreenState extends State<QuoteScreen> {
     super.dispose();
   }
 
+  Widget buildCommentCard(CommentModel comment) {
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
+      child: ListTile(
+        title: Text(comment.name),
+        subtitle: Text(comment.body),
+        trailing: Text("#${comment.id}"),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Quotes")),
-      body: ListView.builder(
+      appBar: AppBar(title: Text("Paginated Comments")),
+      body: ListView(
         controller: _scrollController,
-        itemCount: _quotes.length + (_isLoading ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _quotes.length) {
-            return _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : SizedBox.shrink();
-          }
-          final quote = _quotes[index];
-          return Card(
-            elevation: 4,
-            margin: EdgeInsets.symmetric(vertical: 8),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${quote.id}',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    '"${quote.text}"',
-                    style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-                  ),
-                  SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      '- ${quote.author}',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ],
-              ),
+        children: [
+          ..._comments.map(buildCommentCard),
+          if (_hasMore || _isLoading)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
             ),
-          );
-        },
+        ],
       ),
     );
   }
