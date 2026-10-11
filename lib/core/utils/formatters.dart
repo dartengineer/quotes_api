@@ -22,3 +22,13 @@ String formatPercent(double progress) {
   if (clamped < 1 && percent == 100) percent = 99;
   return '$percent%';
 }
+
+/// Formats a reading duration, e.g. `45 min` or `2 h 05 min`.
+String formatDuration(Duration duration) {
+  final minutes = duration.inMinutes;
+  if (minutes < 1) return 'Less than a minute';
+  if (minutes < 60) return '$minutes min';
+  final hours = minutes ~/ 60;
+  final rest = (minutes % 60).toString().padLeft(2, '0');
+  return '$hours h $rest min';
+}

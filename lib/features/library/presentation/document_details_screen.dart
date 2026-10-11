@@ -9,6 +9,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/dialogs.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../collections/presentation/collection_picker.dart';
+import '../../reader/presentation/open_document.dart';
 import '../domain/library_document.dart';
 import '../domain/reading_status.dart';
 import 'document_details_cubit.dart';
@@ -134,6 +135,14 @@ class _Details extends StatelessWidget {
         ),
         children: [
           _Header(document: document),
+          if (canRead(document)) ...[
+            const SizedBox(height: Spacing.lg),
+            FilledButton.icon(
+              onPressed: () => openDocument(context, document),
+              icon: const Icon(Icons.menu_book_outlined),
+              label: Text(document.progress > 0 ? 'Continue reading' : 'Read'),
+            ),
+          ],
           if (document.progress > 0) ...[
             const SizedBox(height: Spacing.lg),
             ReadingProgressBar(progress: document.progress),
@@ -190,6 +199,8 @@ class _Details extends StatelessWidget {
                 ? 'Never'
                 : _date(context, document.lastOpenedAt!),
           ),
+          if (state.readingTime > Duration.zero)
+            _InfoRow('Reading time', formatDuration(state.readingTime)),
         ],
       ),
     );

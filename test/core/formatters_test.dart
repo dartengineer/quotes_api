@@ -30,4 +30,10 @@ void main() {
       expect(formatPercent(2), '100%');
     });
   });
+
+  test('formatDuration', () {
+    expect(formatDuration(const Duration(seconds: 30)), 'Less than a minute');
+    expect(formatDuration(const Duration(minutes: 45)), '45 min');
+    expect(formatDuration(const Duration(hours: 2, minutes: 5)), '2 h 05 min');
+  });
 }

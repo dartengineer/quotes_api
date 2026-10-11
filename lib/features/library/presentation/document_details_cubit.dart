@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/utils/app_log.dart';
 import '../../collections/data/collection_repository.dart';
 import '../../collections/domain/library_collection.dart';
+import '../../reader/data/reading_progress_repository.dart';
 import '../data/library_manager.dart';
 import '../data/library_repository.dart';
 import '../domain/library_document.dart';
@@ -19,6 +20,7 @@ class DocumentDetailsState extends Equatable {
     this.document,
     this.details,
     this.memberOf = const [],
+    this.readingTime = Duration.zero,
   });
 
   final DetailsStatus status;
@@ -28,22 +30,27 @@ class DocumentDetailsState extends Equatable {
   /// Collections containing the document, by name.
   final List<LibraryCollection> memberOf;
 
+  /// Total time spent reading, across all sessions.
+  final Duration readingTime;
+
   DocumentDetailsState copyWith({
     DetailsStatus? status,
     LibraryDocument? document,
     DocumentDetails? details,
     List<LibraryCollection>? memberOf,
+    Duration? readingTime,
   }) {
     return DocumentDetailsState(
       status: status ?? this.status,
       document: document ?? this.document,
       details: details ?? this.details,
       memberOf: memberOf ?? this.memberOf,
+      readingTime: readingTime ?? this.readingTime,
     );
   }
 
   @override
-  List<Object?> get props => [status, document, details, memberOf];
+  List<Object?> get props => [status, document, details, memberOf, readingTime];
 }
 
 /// Shows and edits one document: favourite, reading status, collections and
@@ -54,6 +61,7 @@ class DocumentDetailsCubit extends Cubit<DocumentDetailsState> {
     required this._library,
     required this._collections,
     required this._manager,
+    required this._progress,
   }) : super(const DocumentDetailsState()) {
     _subscribe();
   }
@@ -62,6 +70,7 @@ class DocumentDetailsCubit extends Cubit<DocumentDetailsState> {
   final LibraryRepository _library;
   final CollectionRepository _collections;
   final LibraryManager _manager;
+  final ReadingProgressRepository _progress;
   final List<StreamSubscription<Object?>> _subscriptions = [];
 
   List<LibraryCollection> _allCollections = const [];
@@ -97,8 +106,12 @@ class DocumentDetailsCubit extends Cubit<DocumentDetailsState> {
 
   Future<void> _loadDetails() async {
     try {
-      final details = await _library.getDetails(documentId);
-      if (!isClosed && details != null) emit(state.copyWith(details: details));
+      final (details, readingTime) = await (
+        _library.getDetails(documentId),
+        _progress.totalReadingTime(documentId),
+      ).wait;
+      if (isClosed) return;
+      emit(state.copyWith(details: details, readingTime: readingTime));
     } catch (error, stackTrace) {
       // Optional information; the screen works without it.
       AppLog.error('Loading document details failed', error, stackTrace);

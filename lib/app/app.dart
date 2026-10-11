@@ -51,6 +51,8 @@ class _LecternAppState extends State<LecternApp> {
         RepositoryProvider.value(value: deps.settings),
         RepositoryProvider.value(value: deps.storage),
         RepositoryProvider.value(value: deps.manager),
+        RepositoryProvider.value(value: deps.readingProgress),
+        RepositoryProvider.value(value: deps.bookmarks),
         RepositoryProvider.value(value: _searchRequests),
       ],
       child: MultiBlocProvider(

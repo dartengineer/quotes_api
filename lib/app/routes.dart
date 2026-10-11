@@ -7,4 +7,5 @@ abstract final class Routes {
 
   static String collection(int id) => '$collections/$id';
   static String document(int id) => '/document/$id';
+  static String read(int id) => '/read/$id';
 }

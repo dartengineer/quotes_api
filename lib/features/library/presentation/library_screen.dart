@@ -4,13 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../app/routes.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/utils/load_status.dart';
 import '../../../core/widgets/dialogs.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../collections/presentation/collection_picker.dart';
 import '../../import/presentation/import_cubit.dart';
+import '../../reader/presentation/open_document.dart';
 import '../domain/library_document.dart';
 import '../domain/library_filter.dart';
 import '../domain/library_layout.dart';
@@ -467,7 +467,7 @@ class _LibraryBody extends StatelessWidget {
   return (
     onTap: state.isSelecting
         ? () => cubit.toggleSelected(document.id)
-        : () => context.push(Routes.document(document.id)),
+        : () => openDocument(context, document),
     onLongPress: () => cubit.toggleSelected(document.id),
     selected: state.isSelecting
         ? state.selectedIds.contains(document.id)

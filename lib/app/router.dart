@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../core/widgets/state_views.dart';
+import '../data/files/library_storage.dart';
 import '../features/collections/data/collection_repository.dart';
 import '../features/collections/presentation/collections_cubit.dart';
 import '../features/collections/presentation/collections_screen.dart';
@@ -14,6 +15,10 @@ import '../features/library/presentation/document_details_cubit.dart';
 import '../features/library/presentation/document_details_screen.dart';
 import '../features/library/presentation/library_cubit.dart';
 import '../features/library/presentation/library_screen.dart';
+import '../features/reader/data/bookmark_repository.dart';
+import '../features/reader/data/reading_progress_repository.dart';
+import '../features/reader/presentation/reader_cubit.dart';
+import '../features/reader/presentation/reader_screen.dart';
 import '../features/settings/data/settings_repository.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import 'app_shell.dart';
@@ -91,6 +96,25 @@ GoRouter buildRouter({String initialLocation = Routes.home}) {
         ],
       ),
       GoRoute(
+        path: '/read/:id',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id']!);
+          if (id == null) return const _NotFoundScreen();
+          return BlocProvider(
+            key: ValueKey('reader-$id'),
+            create: (context) => ReaderCubit(
+              documentId: id,
+              library: context.read<LibraryRepository>(),
+              progress: context.read<ReadingProgressRepository>(),
+              bookmarks: context.read<BookmarkRepository>(),
+              settings: context.read<SettingsRepository>(),
+              storage: context.read<LibraryStorage>(),
+            ),
+            child: const ReaderScreen(),
+          );
+        },
+      ),
+      GoRoute(
         path: '/document/:id',
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id']!);
@@ -102,6 +126,7 @@ GoRouter buildRouter({String initialLocation = Routes.home}) {
               library: context.read<LibraryRepository>(),
               collections: context.read<CollectionRepository>(),
               manager: context.read<LibraryManager>(),
+              progress: context.read<ReadingProgressRepository>(),
             ),
             child: const DocumentDetailsScreen(),
           );

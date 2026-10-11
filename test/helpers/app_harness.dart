@@ -14,6 +14,7 @@ Future<void> pumpApp(
   String location = Routes.home,
   Size size = const Size(390, 844),
   double textScale = 1,
+  bool settle = true,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -27,13 +28,21 @@ Future<void> pumpApp(
       initialLocation: location,
     ),
   );
-  await tester.pumpAndSettle();
+  // Screens that load on a background isolate show a spinner until real
+  // asynchronous work completes; use [pumpUntil] for those.
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
 }
 
 /// Unmounts the app so cubits cancel their streams before the database is
 /// closed in tearDown.
 Future<void> unmountApp(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
+  // Let cubits finish closing (final saves) before the test ends.
+  await tester.pump();
 }
 
 /// Lets real asynchronous work (isolates, file I/O) progress inside a widget

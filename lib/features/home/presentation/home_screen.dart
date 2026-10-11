@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -16,6 +14,7 @@ import '../../library/domain/library_document.dart';
 import '../../library/presentation/library_search_request.dart';
 import '../../library/presentation/widgets/document_cover.dart';
 import '../../library/presentation/widgets/document_tiles.dart';
+import '../../reader/presentation/open_document.dart';
 import 'home_cubit.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -70,10 +69,6 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-void _openDocument(BuildContext context, LibraryDocument document) {
-  unawaited(context.push(Routes.document(document.id)));
-}
-
 class _HomeContent extends StatelessWidget {
   const _HomeContent({required this.state});
 
@@ -121,7 +116,7 @@ class _ContinueReadingCard extends StatelessWidget {
         button: true,
         excludeSemantics: true,
         child: InkWell(
-          onTap: () => _openDocument(context, document),
+          onTap: () => openDocument(context, document),
           child: Padding(
             padding: const EdgeInsets.all(Spacing.md),
             child: Row(
@@ -198,7 +193,7 @@ class _CoverStrip extends StatelessWidget {
             width: _tileWidth,
             child: DocumentGridTile(
               document: document,
-              onTap: () => _openDocument(context, document),
+              onTap: () => openDocument(context, document),
             ),
           );
         },

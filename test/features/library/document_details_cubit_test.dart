@@ -23,6 +23,7 @@ void main() {
       library: deps.library,
       collections: deps.collections,
       manager: deps.manager,
+      progress: deps.readingProgress,
     );
     addTearDown(cubit.close);
     return cubit;
