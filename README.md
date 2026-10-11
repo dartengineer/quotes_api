@@ -2,9 +2,9 @@
 
 An offline-first ebook and document reader for Android, built with Flutter.
 
-> Status: import, library management, the TXT reader (M3) and the PDF
-> reader (M4) are in place, including "Open with" and sharing from other
-> apps. EPUB reading arrives in M5 - see [docs/ROADMAP.md](docs/ROADMAP.md).
+> Status: import, library management and readers for TXT (M3), PDF (M4)
+> and EPUB (M5) are in place, including "Open with" and sharing from other
+> apps. Annotations come next - see [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Principles
 
@@ -16,7 +16,9 @@ An offline-first ebook and document reader for Android, built with Flutter.
   app with "Open with" / share), and the app keeps its own copy; your
   original files are never modified.
 - **Honest about formats.** Only formats with a working, tested reader are
-  advertised: TXT and PDF today, EPUB (reflowable) next.
+  advertised: TXT, PDF and reflowable EPUB.
+- **Safe with untrusted books.** EPUBs are read by Lectern's own engine:
+  no scripts run, no web content loads, and every size is bounded.
 
 ## Architecture
 
@@ -29,7 +31,7 @@ lib/
   app/        app widget, router, shell, dependency wiring
   core/       theme tokens, shared widgets, utilities (zip, images, isolates)
   data/       database schema and migrations; private library storage
-  engines/    format engines (EPUB package parser, PDF inspection, TXT)
+  engines/    format engines (EPUB, PDF inspection, TXT, shared text blocks)
   features/   home, library, collections, import, reader, settings
 
 android/app/src/main/kotlin/   receives documents from other apps

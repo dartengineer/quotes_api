@@ -64,3 +64,42 @@ String pageText(int n) =>
 List<String> pagedText(int pages) => [
   for (var i = 0; i < pages; i++) pageText(i),
 ];
+
+/// Adds an EPUB document whose library file really exists.
+Future<int> addEpubFile(
+  AppDependencies deps, {
+  String title = 'Novel',
+  required Uint8List bytes,
+}) async {
+  final id = await addTestDocument(
+    deps.library,
+    title: title,
+    format: DocumentFormat.epub,
+    contentHash: 'epub-${_counter++}',
+    fileSize: bytes.length,
+  );
+  final document = await deps.library.findById(id);
+  deps.storage.resolve(document!.filePath)
+    ..createSync(recursive: true)
+    ..writeAsBytesSync(bytes);
+  return id;
+}
+
+/// Paragraph [p] of chapter [c] in [novelChapters].
+String novelParagraph(int c, int p) =>
+    'Chapter $c paragraph ${p.toString().padLeft(3, '0')}';
+
+/// Chapter bodies: a heading (id `cN`) and numbered paragraphs (ids
+/// `cNpM`). Chapters are numbered from 1.
+List<String> novelChapters(int chapters, {int paragraphs = 60}) => [
+  for (var c = 1; c <= chapters; c++)
+    '<h1 id="c$c">Chapter $c</h1>'
+        '${[for (var p = 0; p < paragraphs; p++) '<p id="c${c}p$p">${novelParagraph(c, p)}</p>'].join()}',
+];
+
+/// Archive path of chapter [c] in a [readerEpub] book.
+String chapterPath(int c) => 'OEBPS/text/ch$c.xhtml';
+
+/// Offset of paragraph [p] in the text of chapter [c] of [novelChapters].
+int novelOffset(int c, int p) =>
+    'Chapter $c'.length + 1 + p * (novelParagraph(c, 0).length + 1);

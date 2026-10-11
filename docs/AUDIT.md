@@ -60,7 +60,7 @@ lib/
     database/                drift schema, migrations, generated code
     files/                   LibraryStorage: private library directory, hashing
   engines/                   format engines shared by import and readers
-    epub/                    package parser (container, OPF, cover, DRM...)
+    epub/                    package parser, XHTML-to-blocks, contents, book
     pdf/                     PDFium inspection, text search helpers
   features/
     home/ library/ collections/ settings/
@@ -108,7 +108,7 @@ lib/
 | PDF (M4) | `pdfrx` | 2.6.5 | MIT (PDFium: BSD/Apache) | PDFium-based; file-path opening (no full load into memory), password provider, per-page text with character boxes (search + selection), links, async rendering of page regions. Renders existing PDF annotations but has **no API to author annotations into the file** -> highlights/notes will be stored in our DB and drawn as overlays. PDFium binaries are downloaded at **build time** via native-asset hooks (CI needs network to GitHub). |
 | PDF (rejected) | `syncfusion_flutter_pdfviewer` | 35.x | Commercial / community licence | Licence terms unsuitable as a default. |
 | PDF (rejected) | `pdfx` | 2.11 | MIT | Rendering only; weaker text/search support than pdfrx. |
-| EPUB (M5) | Own parser on `archive` + `xml` + `html` | 4.5.1 / 7.1.0 / 0.15.7 | MIT / MIT / MIT | See below. |
+| EPUB (M5) | Own parser on `archive` + `xml` (streaming events) | 4.3.0 / 7.1.0 | MIT / MIT | See below. `html` turned out unnecessary: EPUB content is XHTML, and the lenient event parser copes with sloppy markup. |
 | EPUB (rejected) | `flutter_epub_viewer` | 2.0.0 | BSD-3 | epub.js in a WebView via `flutter_inappwebview` (last release 2024-10). ~1.8k downloads/30 days. Runs a JS engine over untrusted book content; WebView memory cost; cannot be tested in unit tests. |
 | EPUB (rejected) | `epub_view` / `epubx` | 3.3.0 / 4.0.0 | MIT | Low adoption; `epubx` unmaintained since 2023; limited location model. |
 | Import (M2) | `file_picker` | 13.1.0 | MIT | System picker (SAF) - no storage permission. API to be verified against source in M2. |
@@ -132,6 +132,15 @@ as text) to lazily-built blocks.
 * Alternative: WebView + epub.js gives better CSS fidelity and native
   pagination but adds a JS runtime over untrusted content, depends on a
   WebView plugin with slow maintenance, and is untestable outside a device.
+
+**As built (M5):** the native engine was approved and built. One deviation
+from the plan above: the whole book's *text model* is parsed once, on a
+background isolate, when the book opens, and kept in memory (capped at
+40 million characters, with a notice where a book is cut short); layout and
+images remain lazy. This keeps positions, search and the table of contents
+exact and simple. Opening a 3.2-million-character book took 0.25-0.5 s on
+the 4-core Linux VM used for development (debug mode); device timings are
+still to be measured.
 
 ### Formats
 

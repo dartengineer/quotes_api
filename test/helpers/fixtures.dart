@@ -251,6 +251,116 @@ Uint8List buildEpub({
   return ZipEncoder().encodeBytes(archive);
 }
 
+/// An EPUB for reader tests: one XHTML document per entry of [chapters]
+/// (body markup, saved as `OEBPS/text/chN.xhtml`, N from 1), with a table
+/// of contents listing [toc] entries (title, href relative to
+/// `OEBPS/text/`), as an EPUB 3 navigation document or, with [ncx], an
+/// EPUB 2 NCX. [images] are stored under `OEBPS/` by path. Chapters listed
+/// in [nonLinear] (zero-based) are excluded from the reading order.
+Uint8List readerEpub({
+  required List<String> chapters,
+  List<(String, String)> toc = const [],
+  bool ncx = false,
+  Map<String, List<int>> images = const {},
+  Set<int> nonLinear = const {},
+}) {
+  final archive = Archive();
+  final mimetype = utf8.encode('application/epub+zip');
+  archive.add(ArchiveFile.noCompress('mimetype', mimetype.length, mimetype));
+  archive.add(
+    ArchiveFile.string(
+      'META-INF/container.xml',
+      '<?xml version="1.0"?>'
+          '<container version="1.0" '
+          'xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
+          '<rootfiles><rootfile full-path="OEBPS/content.opf" '
+          'media-type="application/oebps-package+xml"/></rootfiles>'
+          '</container>',
+    ),
+  );
+  final manifest = StringBuffer();
+  final spine = StringBuffer();
+  for (final (i, body) in chapters.indexed) {
+    final n = i + 1;
+    manifest.write(
+      '<item id="ch$n" href="text/ch$n.xhtml" '
+      'media-type="application/xhtml+xml"/>',
+    );
+    spine.write(
+      '<itemref idref="ch$n"${nonLinear.contains(i) ? ' linear="no"' : ''}/>',
+    );
+    archive.add(
+      ArchiveFile.string(
+        'OEBPS/text/ch$n.xhtml',
+        '<?xml version="1.0" encoding="utf-8"?>'
+            '<html xmlns="http://www.w3.org/1999/xhtml" '
+            'xmlns:epub="http://www.idpf.org/2007/ops">'
+            '<head><title>Chapter $n</title></head><body>$body</body></html>',
+      ),
+    );
+  }
+  for (final (i, entry) in images.entries.indexed) {
+    manifest.write(
+      '<item id="img$i" href="${entry.key}" media-type="image/png"/>',
+    );
+    archive.add(ArchiveFile.bytes('OEBPS/${entry.key}', entry.value));
+  }
+  var spineAttributes = '';
+  if (toc.isNotEmpty && ncx) {
+    manifest.write(
+      '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>',
+    );
+    spineAttributes = ' toc="ncx"';
+    final points = [
+      for (final (i, (title, href)) in toc.indexed)
+        '<navPoint id="p$i" playOrder="${i + 1}"><navLabel><text>'
+            '${const HtmlEscape().convert(title)}</text></navLabel>'
+            '<content src="text/$href"/></navPoint>',
+    ].join();
+    archive.add(
+      ArchiveFile.string(
+        'OEBPS/toc.ncx',
+        '<?xml version="1.0"?>'
+            '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">'
+            '<navMap>$points</navMap></ncx>',
+      ),
+    );
+  } else if (toc.isNotEmpty) {
+    manifest.write(
+      '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" '
+      'properties="nav"/>',
+    );
+    final items = [
+      for (final (title, href) in toc)
+        '<li><a href="text/$href">${const HtmlEscape().convert(title)}</a></li>',
+    ].join();
+    archive.add(
+      ArchiveFile.string(
+        'OEBPS/nav.xhtml',
+        '<?xml version="1.0" encoding="utf-8"?>'
+            '<html xmlns="http://www.w3.org/1999/xhtml" '
+            'xmlns:epub="http://www.idpf.org/2007/ops"><body>'
+            '<nav epub:type="toc"><ol>$items</ol></nav></body></html>',
+      ),
+    );
+  }
+  archive.add(
+    ArchiveFile.string(
+      'OEBPS/content.opf',
+      '<?xml version="1.0" encoding="UTF-8"?>'
+          '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" '
+          'unique-identifier="id">'
+          '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+          '<dc:title>Reader Test</dc:title><dc:language>en</dc:language>'
+          '</metadata>'
+          '<manifest>$manifest</manifest>'
+          '<spine$spineAttributes>$spine</spine>'
+          '</package>',
+    ),
+  );
+  return ZipEncoder().encodeBytes(archive);
+}
+
 /// Points pdfrx at the PDFium library that its build hook downloaded for
 /// the host, so PDF tests exercise the real engine.
 ///

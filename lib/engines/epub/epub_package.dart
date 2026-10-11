@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:xml/xml.dart';
 
 import '../../core/files/safe_zip.dart';
 import '../../core/utils/text_cleanup.dart';
+import 'epub_xml.dart';
 
 /// Why an EPUB cannot be used.
 enum EpubProblem {
@@ -218,7 +218,7 @@ abstract final class EpubPackageParser {
 
     final XmlDocument document;
     try {
-      document = XmlDocument.parse(_decodeXml(bytes));
+      document = XmlDocument.parse(decodeXml(bytes));
     } on Object {
       // An unreadable encryption declaration cannot be trusted to only cover
       // fonts.
@@ -360,7 +360,7 @@ abstract final class EpubPackageParser {
         maxBytes: 64 * 1024,
       );
       if (bytes != null) {
-        final document = XmlDocument.parse(_decodeXml(bytes));
+        final document = XmlDocument.parse(decodeXml(bytes));
         for (final option in _descendants(document, 'option')) {
           if (_attr(option, 'name') == 'fixed-layout' &&
               option.innerText.trim().toLowerCase() == 'true') {
@@ -477,7 +477,7 @@ abstract final class EpubPackageParser {
     if (bytes == null) return null;
     // A regular expression is enough here and tolerates malformed markup;
     // the page is never rendered or executed.
-    final match = _imageReference.firstMatch(_decodeXml(bytes));
+    final match = _imageReference.firstMatch(decodeXml(bytes));
     if (match == null) return null;
     final path = SafeZip.resolve(page.path, match[1]!);
     return manifest.values
@@ -525,56 +525,12 @@ abstract final class EpubPackageParser {
       // friends in XML files. Only the fixed, finite HTML entity table is
       // expanded; DTD-defined entities and external references never are.
       return XmlDocument.parse(
-        _decodeXml(bytes),
+        decodeXml(bytes),
         entityMapping: const XmlDefaultEntityMapping.html5(),
       );
     } on Object {
       throw EpubException(EpubProblem.damaged, '$what is not valid XML');
     }
-  }
-
-  /// Decodes XML bytes honouring a byte-order mark or a declared single-byte
-  /// encoding; defaults to UTF-8.
-  static String _decodeXml(Uint8List bytes) {
-    if (bytes.length >= 2) {
-      if (bytes[0] == 0xFF && bytes[1] == 0xFE) {
-        return _decodeUtf16(bytes.sublist(2), littleEndian: true);
-      }
-      if (bytes[0] == 0xFE && bytes[1] == 0xFF) {
-        return _decodeUtf16(bytes.sublist(2), littleEndian: false);
-      }
-    }
-    final start =
-        bytes.length >= 3 &&
-            bytes[0] == 0xEF &&
-            bytes[1] == 0xBB &&
-            bytes[2] == 0xBF
-        ? 3
-        : 0;
-    final body = bytes.sublist(start);
-    final declaration = latin1
-        .decode(body.sublist(0, body.length < 200 ? body.length : 200))
-        .toLowerCase();
-    final encoding = RegExp(r'''encoding\s*=\s*["']([^"']+)["']''')
-        .firstMatch(declaration)?[1];
-    if (encoding == 'iso-8859-1' ||
-        encoding == 'latin1' ||
-        encoding == 'windows-1252') {
-      return latin1.decode(body);
-    }
-    return utf8.decode(body, allowMalformed: true);
-  }
-
-  static String _decodeUtf16(Uint8List bytes, {required bool littleEndian}) {
-    final units = <int>[];
-    for (var i = 0; i + 1 < bytes.length; i += 2) {
-      units.add(
-        littleEndian
-            ? bytes[i] | (bytes[i + 1] << 8)
-            : (bytes[i] << 8) | bytes[i + 1],
-      );
-    }
-    return String.fromCharCodes(units);
   }
 
   /// Attribute by local name, ignoring namespace prefixes.

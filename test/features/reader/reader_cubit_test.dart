@@ -60,7 +60,7 @@ void main() {
     expect(document.lastOpenedAt, isNotNull);
   });
 
-  test('reports missing documents, files and unsupported formats', () async {
+  test('reports missing documents and files', () async {
     expect(
       (await until(open(9999), (s) => s.status != ReaderStatus.loading)).status,
       ReaderStatus.notFound,
@@ -76,15 +76,6 @@ void main() {
         (s) => s.status != ReaderStatus.loading,
       )).status,
       ReaderStatus.missingFile,
-    );
-
-    final epub = await addTestDocument(
-      deps.library,
-      format: DocumentFormat.epub,
-    );
-    expect(
-      (await until(open(epub), (s) => s.status != ReaderStatus.loading)).status,
-      ReaderStatus.unsupported,
     );
   });
 

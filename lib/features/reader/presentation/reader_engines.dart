@@ -4,6 +4,7 @@ import '../../../core/theme/reader_palette.dart';
 import '../../library/domain/document_format.dart';
 import '../domain/locator.dart';
 import '../domain/reader_preferences.dart';
+import 'epub/epub_reader_view.dart';
 import 'pdf/pdf_reader_view.dart';
 import 'reader_view_controller.dart';
 import 'txt/txt_reader_view.dart';
@@ -35,8 +36,7 @@ class ReaderViewConfig {
 /// for reading once its view exists and is tested.
 abstract final class ReaderEngines {
   static bool supports(DocumentFormat format) => switch (format) {
-    DocumentFormat.txt || DocumentFormat.pdf => true,
-    DocumentFormat.epub => false,
+    DocumentFormat.txt || DocumentFormat.pdf || DocumentFormat.epub => true,
   };
 
   /// Whether the text reflows, so typography settings apply. PDF pages are
@@ -50,9 +50,7 @@ abstract final class ReaderEngines {
     return switch (format) {
       DocumentFormat.txt => TxtReaderView(config: config),
       DocumentFormat.pdf => PdfReaderView(config: config),
-      DocumentFormat.epub => throw UnsupportedError(
-        'No reader for $format yet',
-      ),
+      DocumentFormat.epub => EpubReaderView(config: config),
     };
   }
 }

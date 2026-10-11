@@ -26,17 +26,17 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- "Open with": offered only for formats the app can already
-                 display (EPUB joins when its reader does). Only
-                 content:// URIs are accepted; the app reads exactly the file it
-                 was given, so no storage permission is needed. singleTask keeps
-                 a single instance (one database owner) when another app opens a
-                 document. -->
+            <!-- "Open with": offered only for formats the app can display.
+                 Only content:// URIs are accepted; the app reads exactly the
+                 file it was given, so no storage permission is needed.
+                 singleTask keeps a single instance (one database owner) when
+                 another app opens a document. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:scheme="content"/>
                 <data android:mimeType="application/pdf"/>
+                <data android:mimeType="application/epub+zip"/>
                 <data android:mimeType="text/plain"/>
             </intent-filter>
             <!-- Share sheet ("add to library"), for every format the importer

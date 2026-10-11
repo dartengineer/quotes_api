@@ -1,33 +1,33 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lectern/core/utils/text_search.dart';
 import 'package:lectern/engines/pdf/pdf_text_geometry.dart';
-import 'package:lectern/engines/pdf/pdf_text_search.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 void main() {
-  group('pdfSearchPattern', () {
+  group('flexibleSearchPattern', () {
     test('is case-insensitive and matches across any whitespace', () {
-      final pattern = pdfSearchPattern('  quick   BROWN ')!;
+      final pattern = flexibleSearchPattern('  quick   BROWN ')!;
       expect(pattern.hasMatch('The quick brown fox'), isTrue);
       expect(pattern.hasMatch('the Quick\r\nbrown'), isTrue);
       expect(pattern.hasMatch('quickbrown'), isFalse);
     });
 
     test('treats the query literally', () {
-      final pattern = pdfSearchPattern('a.b (c)')!;
+      final pattern = flexibleSearchPattern('a.b (c)')!;
       expect(pattern.hasMatch('a.b (c)'), isTrue);
       expect(pattern.hasMatch('axb (c)'), isFalse);
     });
 
     test('an empty query has no pattern', () {
-      expect(pdfSearchPattern(''), isNull);
-      expect(pdfSearchPattern('   '), isNull);
+      expect(flexibleSearchPattern(''), isNull);
+      expect(flexibleSearchPattern('   '), isNull);
     });
   });
 
-  group('searchPageText', () {
+  group('findTextMatches', () {
     test('keeps offsets aligned with the page text and the snippet', () {
       const text = 'First line\r\nsecond line with a match\nthird';
-      final hits = searchPageText(text, pdfSearchPattern('line with')!);
+      final hits = findTextMatches(text, flexibleSearchPattern('line with')!);
       expect(hits, hasLength(1));
       final hit = hits.single;
       expect(text.substring(hit.start, hit.end), 'line with');
@@ -43,7 +43,10 @@ void main() {
 
     test('a match spanning a line break is shown on one line', () {
       const text = 'end of one\nstart of next';
-      final hit = searchPageText(text, pdfSearchPattern('one start')!).single;
+      final hit = findTextMatches(
+        text,
+        flexibleSearchPattern('one start')!,
+      ).single;
       expect(hit.length, 'one\nstart'.length);
       expect(hit.snippet, 'end of one start of next');
     });
@@ -51,7 +54,7 @@ void main() {
     test('stops at maxHits', () {
       final text = List.filled(20, 'cat').join(' ');
       expect(
-        searchPageText(text, pdfSearchPattern('cat')!, maxHits: 5),
+        findTextMatches(text, flexibleSearchPattern('cat')!, maxHits: 5),
         hasLength(5),
       );
     });

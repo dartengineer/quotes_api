@@ -26,6 +26,9 @@ abstract interface class ReaderNavigator {
   /// The document's table of contents; empty if it has none (or it is not
   /// known yet).
   List<TocEntry> get contents;
+
+  /// The [contents] entry whose section contains [position], if any.
+  int? contentsIndexAt(Locator position);
 }
 
 /// A [ReaderNavigator] for documents made of fixed pages (PDF).
@@ -54,6 +57,9 @@ class ReaderViewController {
   };
 
   List<TocEntry> get contents => _navigator?.contents ?? const [];
+
+  int? contentsIndexAt(Locator position) =>
+      _navigator?.contentsIndexAt(position);
 
   void attach(ReaderNavigator navigator) => _navigator = navigator;
 

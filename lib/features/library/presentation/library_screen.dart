@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../app/routes.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/utils/load_status.dart';
 import '../../../core/widgets/dialogs.dart';
@@ -276,6 +277,16 @@ class _SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       title: Text('${state.selectedIds.length} selected'),
       actions: [
+        // Tapping a document opens it; its details are one long press away.
+        if (state.selectedDocuments case [final only])
+          IconButton(
+            tooltip: 'Details',
+            icon: const Icon(Icons.info_outline),
+            onPressed: () {
+              cubit.clearSelection();
+              unawaited(context.push(Routes.document(only.id)));
+            },
+          ),
         IconButton(
           tooltip: 'Select all',
           icon: const Icon(Icons.select_all),

@@ -24,7 +24,7 @@ Future<void> showContentsSheet(
     isScrollControlled: true,
     builder: (context) => _ContentsSheet(
       entries: entries,
-      current: position == null ? null : currentEntryIndex(entries, position),
+      current: position == null ? null : controller.contentsIndexAt(position),
       onSelected: (entry) {
         Navigator.of(context).pop();
         controller.goTo(entry.locator);

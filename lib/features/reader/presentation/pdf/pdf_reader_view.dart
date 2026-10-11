@@ -7,14 +7,16 @@ import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../../../core/utils/app_log.dart';
+import '../../../../core/utils/text_search.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../../engines/pdf/pdf_text_geometry.dart';
-import '../../../../engines/pdf/pdf_text_search.dart';
 import '../../domain/locator.dart';
 import '../../domain/search_hit.dart';
 import '../../domain/toc_entry.dart';
 import '../reader_engines.dart';
 import '../reader_view_controller.dart';
+import '../widgets/navigation_sheets.dart' show currentEntryIndex;
+import '../widgets/web_link_dialog.dart';
 import 'pdf_dialogs.dart';
 
 /// Reads a PDF with PDFium (through pdfrx): continuous vertical scrolling
@@ -194,6 +196,10 @@ class _PdfReaderViewState extends State<PdfReaderView>
   List<TocEntry> get contents => _contents;
 
   @override
+  int? contentsIndexAt(Locator position) =>
+      currentEntryIndex(_contents, position);
+
+  @override
   void goTo(Locator locator, {int highlightLength = 0}) {
     if (locator is! PdfLocator) return;
     unawaited(_goToLocator(locator, highlightLength: highlightLength));
@@ -310,7 +316,7 @@ class _PdfReaderViewState extends State<PdfReaderView>
 
   @override
   Future<List<SearchHit>> search(String query) async {
-    final pattern = pdfSearchPattern(query);
+    final pattern = flexibleSearchPattern(query);
     if (pattern == null || !_viewer.isReady) return const [];
     final generation = ++_searchGeneration;
     final hits = <SearchHit>[];
@@ -322,7 +328,7 @@ class _PdfReaderViewState extends State<PdfReaderView>
       if (text == null) continue;
       final page = _viewer.isReady ? _viewer.pages[index] : null;
       if (page == null) break;
-      for (final hit in searchPageText(
+      for (final hit in findTextMatches(
         text.fullText,
         pattern,
         maxHits: _maxHits - hits.length,
@@ -446,7 +452,7 @@ class _PdfReaderViewState extends State<PdfReaderView>
     final url = link.url;
     // Websites are never opened automatically: the app works offline and
     // makes no network requests. The address can be copied instead.
-    if (url != null && mounted) unawaited(showPdfLinkDialog(context, url));
+    if (url != null && mounted) unawaited(showWebLinkDialog(context, url));
   }
 
   // --- Building ---------------------------------------------------------------

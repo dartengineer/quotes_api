@@ -67,8 +67,7 @@ yet; see the risks section of [AUDIT.md](AUDIT.md).
 - [x] Collections tab: create, rename, delete, browse a collection
 - [x] Home: import and search entry points; documents open details
 - [x] "Open with" / share intents: done in M3 (see below)
-- [x] Opening a document to read: TXT in M3, PDF in M4; EPUB opens its
-      details page until its reader arrives (M5)
+- [x] Opening a document to read: TXT in M3, PDF in M4, EPUB in M5
 
 ## M3 - Reader core + TXT
 
@@ -161,15 +160,51 @@ yet; see the risks section of [AUDIT.md](AUDIT.md).
 - [ ] Search results for very large PDFs appear only once the whole
       document has been searched (no streaming or progress yet)
 
-## M5 - EPUB (own engine, pending approval)
+## M5 - EPUB (own engine)
 
-- [ ] Parser: container.xml, OPF manifest/spine, EPUB 2 NCX + EPUB 3 nav
-- [ ] Safe XHTML subset to Flutter text blocks; images; internal links
-- [ ] Table of contents, chapter navigation, typography settings
-- [ ] Position restore by spine href + character offset
-- [ ] Search, bookmarks
-- [ ] Fixed-layout EPUBs detected and reported as unsupported
-- [ ] Add `application/epub+zip` to the "Open with" intent filter
+- [x] Parser: container, OPF manifest/spine (linear reading order,
+      duplicates skipped), EPUB 3 navigation document and EPUB 2 NCX
+      contents (iterative, bounded in entries and depth)
+- [x] XHTML reduced to a safe subset on a background isolate, with a
+      streaming, lenient XML parser: paragraphs, headings, quotes, lists
+      (numbered and bulleted, nested), preformatted text, captions, tables
+      as text, rules, images (including SVG-wrapped covers), bold / italic /
+      underline / strikethrough / monospace / small / super- and subscript.
+      Scripts, styles, forms, frames and embedded objects are never shown
+      or run; the book's CSS, fonts and colours are ignored in favour of the
+      reader's typography
+- [x] Hostile-content bounds: per-chapter (8 MB, 4 M characters) and
+      per-book (40 M characters) limits with a visible notice when a book is
+      cut short; tracked nesting depth capped; images read on demand
+      (15 MB cap) and decoded no larger than the screen
+- [x] Shared flow view for TXT and EPUB (extracted from the TXT reader;
+      its tests guard the refactor): lazily built blocks anchored at the
+      reading position, exact character-offset positions
+- [x] Continuous scrolling across chapters, with extra space at chapter
+      starts
+- [x] Position restore by spine href + character offset; survives text
+      size changes (re-anchored on the same character)
+- [x] Table of contents with exact anchor offsets and the current section
+      marked
+- [x] Internal links (footnotes, cross-references) jump within the book;
+      web links are shown with a copy option, never opened
+- [x] Search across chapters (whitespace-tolerant), jump and highlight
+- [x] Bookmarks with text excerpts
+- [x] Typography settings apply (font, size, spacing, margins, justify,
+      themes)
+- [x] DRM-protected and damaged books explained in the reader
+- [x] "Open with" offered for EPUBs (`application/epub+zip`)
+- [x] Library: tapping any book opens it; details are reached by
+      long-pressing a book and choosing "Details" (a single selection)
+- [~] Performance: opening a 3.2-million-character book took 0.25-0.5 s on
+      the development VM (debug mode); not measured on a device. The book's
+      text model is held in memory while reading (bounded as above)
+- [ ] Fixed-layout EPUBs: still rejected at import; the reader would show
+      their pages as a sequence of images
+- [ ] Footnotes as pop-ups (they are followed as links for now)
+- [ ] Publisher styling beyond structure (alignment from CSS, drop caps,
+      tables as grids) is not reproduced
+- [ ] Inline images are shown as their own blocks
 
 ## M6 - Annotations
 

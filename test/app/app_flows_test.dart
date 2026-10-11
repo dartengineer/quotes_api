@@ -212,10 +212,14 @@ void main() {
     );
     await pumpApp(tester, deps, location: Routes.library);
 
-    await tester.tap(find.byKey(ValueKey(id)));
+    // Tapping opens the book; details are reached by selecting it.
+    await tester.longPress(find.byKey(ValueKey(id)));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Details'));
     await settle(tester);
     expect(find.text('Details Book'), findsWidgets);
     expect(find.text('Reading status'), findsOneWidget);
+    expect(find.text('1 selected'), findsNothing);
 
     await tester.tap(find.text('Finished'));
     await settle(tester);
