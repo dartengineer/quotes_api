@@ -1,22 +1,31 @@
-import 'package:api_testing/screens/homescreen.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'app/app.dart';
+import 'app/dependencies.dart';
+import 'core/utils/app_log.dart';
+import 'data/database/app_database.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _bootstrap();
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+Future<void> _bootstrap() async {
+  final dependencies = AppDependencies(AppDatabase.open());
+  try {
+    // Loading preferences before the first frame avoids a light/dark theme
+    // flash; it is a single small query. It also surfaces database problems
+    // up front instead of on the first screen.
+    final preferences = await dependencies.settings.load();
+    runApp(
+      LecternApp(
+        dependencies: dependencies,
+        initialSettings: preferences.appSettings,
       ),
-      home: QuoteScreen(),
     );
+  } catch (error, stackTrace) {
+    AppLog.error('Start-up failed', error, stackTrace);
+    await dependencies.dispose().catchError((Object _) {});
+    runApp(StartupErrorApp(onRetry: () => _bootstrap()));
   }
 }
