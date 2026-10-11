@@ -32,6 +32,7 @@ Future<void> _bootstrap() async {
       ),
     );
     unawaited(_clearPickerCopies(dependencies));
+    unawaited(_clearStaleIncoming(dependencies));
   } catch (error, stackTrace) {
     AppLog.error('Start-up failed', error, stackTrace);
     await database.close().catchError((Object _) {});
@@ -58,5 +59,15 @@ Future<void> _clearPickerCopies(AppDependencies dependencies) async {
     await dependencies.picker.clearTemporaryFiles();
   } catch (error, stackTrace) {
     AppLog.error('Clearing picker copies failed', error, stackTrace);
+  }
+}
+
+/// Deletes copies of documents from other apps that were never imported
+/// (the app was closed first).
+Future<void> _clearStaleIncoming(AppDependencies dependencies) async {
+  try {
+    await dependencies.incoming.clearStale();
+  } catch (error, stackTrace) {
+    AppLog.error('Clearing received documents failed', error, stackTrace);
   }
 }

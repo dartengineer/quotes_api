@@ -66,23 +66,59 @@ yet; see the risks section of [AUDIT.md](AUDIT.md).
       remove from library
 - [x] Collections tab: create, rename, delete, browse a collection
 - [x] Home: import and search entry points; documents open details
-- [ ] "Open with" / share intents from other apps (planned with M3)
-- [ ] Opening a document to read (readers arrive in M3-M5)
+- [x] "Open with" / share intents: done in M3 (see below)
+- [x] Opening a document to read: TXT in M3; PDF and EPUB open their
+      details page until their readers arrive (M4-M5)
 
 ## M3 - Reader core + TXT
 
-- [ ] Locator model (pdf / epub / txt) with JSON round-trip tests
-- [ ] Reader contract shared by all engines
-- [ ] Debounced reading-position persistence + flush on pause/close
-- [ ] Reading sessions and history
-- [ ] Bookmarks (add, list, jump, delete)
-- [ ] TXT: encoding detection, chunked lazy rendering for large files,
-      character-offset positions
-- [ ] Reader preferences (font size, line height, margins, paper/sepia/night)
+- [x] Locator model (pdf / epub / txt) with JSON round-trip tests;
+      undecodable stored positions are ignored, never crash the reader
+- [x] Reader contract shared by all engines (`ReaderNavigator`, view
+      controller, per-format engine registry); unsupported formats fall back
+      to the details page
+- [x] Reading-position persistence: throttled writes while reading, flush
+      on pause and close; progress written on flush
+- [~] Pause/resume via app lifecycle (logic tested; the Android lifecycle
+      itself needs a device)
+- [x] Reading sessions (5 s minimum) and total reading time on the details
+      page
+- [ ] Reading history view (sessions are recorded; no screen yet)
+- [x] Bookmarks: add/remove at the visible position, list in reading
+      order with excerpts, jump, delete
+- [x] TXT engine: BOM detection, UTF-8 / UTF-16 / UTF-32, Windows-1252
+      fallback, line-ending and control-character normalisation, 50 MB cap
+- [x] TXT view: lazily built blocks around an anchor (jumps to the end of
+      a large file do not lay out the whole text), exact character-offset
+      positions that survive font and layout changes
+- [~] TXT view performance on large files: verified by widget tests only,
+      no device measurements yet
+- [x] In-document search with context, jump and highlight
+- [x] Tap zones (page back / forward, toggle toolbars), progress slider
+- [~] Full-screen reading (system bars hidden until the page is tapped)
+- [x] Reader preferences: font, size, line height, paragraph spacing,
+      margins, justification, auto / paper / sepia / night themes
+      (palette contrast tested against WCAG AA); saved globally
+- [~] "Open with" (TXT) and "Share to Lectern" (PDF, EPUB): native bridge
+      compile-checked against Android 16 and the Flutter embedding; its
+      file-safety rules unit-tested on the JVM; the Dart side tested over a
+      mocked channel. Needs a device check (no Android SDK here)
+  - Only content:// URIs; no storage permission; sender-supplied names are
+    reduced to a plain file name inside a fresh directory; 1 GB cap
+  - Documents arriving during an import are queued, never dropped
+  - "Open with" opens the document once imported (or the existing copy if
+    it is already in the library); a single imported or duplicate document
+    can be opened from the import summary
+  - Temporary copies are deleted after import; leftovers older than an hour
+    are removed at start-up
+  - Android < 7 file managers that send file:// URIs are not supported
+- [x] Fixed: the import sheet stayed open (empty) when the picker
+      prepared files but returned none
 
 ## M4 - PDF (pdfrx)
 
 - [ ] Continuous scrolling, zoom, page navigation, full-screen, landscape
+- [ ] Add `application/pdf` to the "Open with" intent filter
 - [ ] Page thumbnails, bounded caches, resource disposal
 - [ ] Text search with result navigation
 - [ ] Bookmarks by page; position restore
@@ -97,6 +133,7 @@ yet; see the risks section of [AUDIT.md](AUDIT.md).
 - [ ] Position restore by spine href + character offset
 - [ ] Search, bookmarks
 - [ ] Fixed-layout EPUBs detected and reported as unsupported
+- [ ] Add `application/epub+zip` to the "Open with" intent filter
 
 ## M6 - Annotations
 

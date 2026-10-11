@@ -122,6 +122,32 @@ void main() {
     expect((await deps.library.findById(id))!.progress, 0.5);
   });
 
+  test('saves position and progress when the app is paused', () async {
+    final id = await addTextFile(deps, content: numberedLines(100));
+    final cubit = open(id);
+    await until(cubit, (s) => s.status == ReaderStatus.ready);
+    cubit.onPosition(
+      ReaderPosition(locator: TextLocator(lineOffset(20)), progress: 0.2),
+    );
+    await cubit.onAppPaused();
+    expect(
+      await deps.readingProgress.loadPosition(id),
+      TextLocator(lineOffset(20)),
+    );
+    expect((await deps.library.findById(id))!.progress, 0.2);
+
+    // Reading continues after returning to the app.
+    cubit.onAppResumed();
+    cubit.onPosition(
+      ReaderPosition(locator: TextLocator(lineOffset(40)), progress: 0.4),
+    );
+    await cubit.close();
+    expect(
+      await deps.readingProgress.loadPosition(id),
+      TextLocator(lineOffset(40)),
+    );
+  });
+
   test('saves preferences', () async {
     final id = await addTextFile(deps, content: 'x');
     final cubit = open(id);

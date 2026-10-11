@@ -19,7 +19,13 @@ enum RejectionReason {
   emptyFile,
   damaged,
   drmProtected,
-  fixedLayout;
+  fixedLayout,
+
+  /// The app that shared the file did not let us read it.
+  unreadable,
+
+  /// Larger than the app accepts from other apps.
+  tooLarge;
 
   String message({String? formatDescription}) => switch (this) {
     RejectionReason.unsupportedFormat =>
@@ -32,6 +38,9 @@ enum RejectionReason {
       'This book is DRM-protected and can’t be opened.',
     RejectionReason.fixedLayout =>
       'Fixed-layout EPUBs (such as comics) aren’t supported yet.',
+    RejectionReason.unreadable =>
+      'The file couldn’t be read. The app it came from may not allow it.',
+    RejectionReason.tooLarge => 'The file is too large (the limit is 1 GB).',
   };
 }
 
@@ -135,6 +144,17 @@ class ImportReport extends Equatable {
       .where((o) => o is RejectedOutcome || o is FailedOutcome)
       .toList();
   int get skipped => total - outcomes.length;
+
+  /// The library document to open when this import was for exactly one file
+  /// that is now in the library (newly added or already there).
+  int? get singleDocumentId {
+    if (total != 1 || outcomes.length != 1) return null;
+    return switch (outcomes.single) {
+      ImportedOutcome(:final documentId) => documentId,
+      DuplicateOutcome(:final existingId) => existingId,
+      _ => null,
+    };
+  }
 
   @override
   List<Object?> get props => [outcomes, total, cancelled];

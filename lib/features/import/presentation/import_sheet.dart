@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../../reader/presentation/open_document.dart';
 import '../domain/import_outcome.dart';
 import 'import_cubit.dart';
 
@@ -24,7 +25,8 @@ class _ImportProgressListenerState extends State<ImportProgressListener> {
   Future<void> _showSheet(BuildContext context) async {
     _sheetVisible = true;
     final cubit = context.read<ImportCubit>();
-    await showModalBottomSheet<void>(
+    // The sheet closes with the id of a document to open, if any.
+    final documentId = await showModalBottomSheet<int>(
       context: context,
       isDismissible: false,
       enableDrag: false,
@@ -35,6 +37,9 @@ class _ImportProgressListenerState extends State<ImportProgressListener> {
     );
     _sheetVisible = false;
     cubit.dismiss();
+    if (documentId != null && context.mounted) {
+      await openDocumentById(context, documentId);
+    }
   }
 
   @override
@@ -58,16 +63,54 @@ class _ImportProgressListenerState extends State<ImportProgressListener> {
 }
 
 /// Progress while importing, then a summary of what happened to each file.
-class ImportSheet extends StatelessWidget {
+class ImportSheet extends StatefulWidget {
   const ImportSheet({super.key});
+
+  @override
+  State<ImportSheet> createState() => _ImportSheetState();
+
+  static int _ordinal(ImportProgress progress) =>
+      (progress.completed + 1).clamp(1, progress.total);
+}
+
+class _ImportSheetState extends State<ImportSheet> {
+  bool _closing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // The import may have ended before this sheet was built.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _closeIfDone(context.read<ImportCubit>().state);
+    });
+  }
+
+  /// Closes the sheet without waiting for the user when there is nothing
+  /// to show (the picker came back empty after "preparing", e.g. every copy
+  /// failed) or when the imported document should open right away.
+  void _closeIfDone(ImportState state) {
+    // Once the sheet is closing (e.g. the user tapped Done, which resets the
+    // state), popping again would close the screen underneath instead.
+    if (_closing || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+    final int? documentId;
+    switch (state) {
+      case ImportIdle():
+        documentId = null;
+      case ImportFinished(:final documentToOpen?):
+        documentId = documentToOpen;
+      default:
+        return;
+    }
+    _closing = true;
+    // Not maybePop: this runs before the rebuild, while the PopScope still
+    // blocks closing for the import that just ended.
+    Navigator.of(context).pop(documentId);
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<ImportCubit, ImportState>(
-      // The picker can come back empty after "preparing" (e.g. every copy
-      // failed); there is nothing to show then.
-      listenWhen: (previous, current) => current is ImportIdle,
-      listener: (context, state) => Navigator.of(context).maybePop(),
+      listener: (context, state) => _closeIfDone(state),
       builder: (context, state) {
         return PopScope(
           canPop: !state.isBusy,
@@ -86,7 +129,8 @@ class ImportSheet extends StatelessWidget {
               ImportRunning(:final progress, :final cancelling) => _Busy(
                 title: cancelling
                     ? 'Stopping…'
-                    : 'Importing ${_ordinal(progress)} of ${progress.total}',
+                    : 'Importing ${ImportSheet._ordinal(progress)} '
+                          'of ${progress.total}',
                 detail: progress.currentFileName,
                 value: progress.total == 0
                     ? null
@@ -103,9 +147,6 @@ class ImportSheet extends StatelessWidget {
       },
     );
   }
-
-  static int _ordinal(ImportProgress progress) =>
-      (progress.completed + 1).clamp(1, progress.total);
 }
 
 class _Busy extends StatelessWidget {
@@ -233,13 +274,29 @@ class _Summary extends StatelessWidget {
           ),
         ],
         const SizedBox(height: Spacing.lg),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Done'),
+        if (report.singleDocumentId case final documentId?)
+          OverflowBar(
+            alignment: MainAxisAlignment.end,
+            spacing: Spacing.sm,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Done'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(documentId),
+                child: const Text('Open'),
+              ),
+            ],
+          )
+        else
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Done'),
+            ),
           ),
-        ),
       ],
     );
   }

@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/widgets/state_views.dart';
+import '../features/import/data/incoming_documents.dart';
 import '../features/import/presentation/import_cubit.dart';
 import '../features/library/presentation/library_search_request.dart';
 import '../features/settings/domain/app_settings.dart';
@@ -34,9 +37,36 @@ class _LecternAppState extends State<LecternApp> {
     initialLocation: widget.initialLocation,
   );
   final _searchRequests = LibrarySearchRequest();
+  late final ImportCubit _imports = ImportCubit(
+    picker: widget.dependencies.picker,
+    importer: widget.dependencies.importer,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(widget.dependencies.incoming.start(_onDocumentsReceived));
+  }
+
+  /// Imports documents sent from other apps ("Open with", share), then
+  /// deletes their temporary copies.
+  void _onDocumentsReceived(IncomingBatch batch) {
+    unawaited(_importReceived(batch));
+  }
+
+  Future<void> _importReceived(IncomingBatch batch) async {
+    await _imports.importSources(
+      batch.sources,
+      rejected: batch.rejected,
+      openWhenDone: batch.openWhenDone,
+    );
+    await widget.dependencies.incoming.discard(batch.sources);
+  }
 
   @override
   void dispose() {
+    widget.dependencies.incoming.stop();
+    unawaited(_imports.close());
     _router.dispose();
     super.dispose();
   }
@@ -61,10 +91,7 @@ class _LecternAppState extends State<LecternApp> {
             create: (context) =>
                 SettingsCubit(deps.settings, widget.initialSettings),
           ),
-          BlocProvider(
-            create: (context) =>
-                ImportCubit(picker: deps.picker, importer: deps.importer),
-          ),
+          BlocProvider.value(value: _imports),
         ],
         child: BlocBuilder<SettingsCubit, AppSettings>(
           buildWhen: (previous, current) =>

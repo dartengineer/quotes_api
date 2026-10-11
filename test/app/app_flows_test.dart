@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -63,6 +64,56 @@ void main() {
     expect(find.text('First Book'), findsWidgets);
     expect(find.text('notes'), findsWidgets);
     expect(importState(tester), isA<ImportIdle>());
+
+    await unmountApp(tester);
+  });
+
+  testWidgets('a single picked document can be opened from the summary', (
+    tester,
+  ) async {
+    picker.next = await tester.runAsync(
+      () async => [sourceFile('notes.txt', 'Some notes'.codeUnits)],
+    ) as List<ImportSource>;
+    await pumpApp(tester, deps, location: Routes.library);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Import documents'));
+    await tester.pump();
+    await pumpUntil(tester, () => importState(tester) is ImportFinished);
+    await settle(tester);
+    expect(find.text('1 document added'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+    await tester.pump();
+    await pumpUntil(
+      tester,
+      () => find.text('Some notes', findRichText: true).evaluate().isNotEmpty,
+    );
+    await settle(tester);
+
+    await unmountApp(tester);
+  });
+
+  testWidgets('the sheet closes when the picker prepares nothing', (
+    tester,
+  ) async {
+    final copying = Completer<void>();
+    picker
+      ..prepareEvenIfEmpty = true
+      ..preparing = copying.future;
+    await pumpApp(tester, deps, location: Routes.library);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Import documents'));
+    // An indeterminate progress bar never settles.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Preparing files…'), findsOneWidget);
+
+    copying.complete();
+    await settle(tester);
+    expect(find.text('Preparing files…'), findsNothing);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(importState(tester), isA<ImportIdle>());
+    expect(find.text('No documents yet'), findsOneWidget);
 
     await unmountApp(tester);
   });

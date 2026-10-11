@@ -14,10 +14,19 @@ class FakeDocumentPicker implements DocumentPicker {
   Object? error;
   int clearCalls = 0;
 
+  /// Report "preparing" even when nothing comes back (every copy failed).
+  bool prepareEvenIfEmpty = false;
+
+  /// When set, the picker stays in "preparing" until this completes.
+  Future<void>? preparing;
+
   @override
   Future<List<ImportSource>> pick({void Function()? onPreparing}) async {
     if (error case final error?) throw error;
-    if (next.isNotEmpty) onPreparing?.call();
+    if (next.isNotEmpty || prepareEvenIfEmpty) {
+      onPreparing?.call();
+      await preparing;
+    }
     return next;
   }
 
