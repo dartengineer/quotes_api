@@ -25,6 +25,17 @@ dependencies:
   path_provider: ^2.1.6
   path: ^1.9.1
 
+  # Import & document engines
+  file_picker: ^13.1.0
+  crypto: ^3.0.7
+  xml: ^7.1.0
+  pdfrx: ^2.6.5
+  # Pinned: both had several releases in the 48 hours before they were
+  # added (2026-10-10/11). Pinned to versions with weeks of public use;
+  # review before upgrading.
+  archive: 4.3.0
+  image: 4.10.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
