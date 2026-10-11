@@ -4,6 +4,7 @@ import '../../../core/theme/reader_palette.dart';
 import '../../library/domain/document_format.dart';
 import '../domain/locator.dart';
 import '../domain/reader_preferences.dart';
+import 'pdf/pdf_reader_view.dart';
 import 'reader_view_controller.dart';
 import 'txt/txt_reader_view.dart';
 
@@ -34,14 +35,22 @@ class ReaderViewConfig {
 /// for reading once its view exists and is tested.
 abstract final class ReaderEngines {
   static bool supports(DocumentFormat format) => switch (format) {
-    DocumentFormat.txt => true,
-    DocumentFormat.pdf || DocumentFormat.epub => false,
+    DocumentFormat.txt || DocumentFormat.pdf => true,
+    DocumentFormat.epub => false,
+  };
+
+  /// Whether the text reflows, so typography settings apply. PDF pages are
+  /// shown as they were laid out.
+  static bool isReflowable(DocumentFormat format) => switch (format) {
+    DocumentFormat.txt || DocumentFormat.epub => true,
+    DocumentFormat.pdf => false,
   };
 
   static Widget buildView(DocumentFormat format, ReaderViewConfig config) {
     return switch (format) {
       DocumentFormat.txt => TxtReaderView(config: config),
-      DocumentFormat.pdf || DocumentFormat.epub => throw UnsupportedError(
+      DocumentFormat.pdf => PdfReaderView(config: config),
+      DocumentFormat.epub => throw UnsupportedError(
         'No reader for $format yet',
       ),
     };

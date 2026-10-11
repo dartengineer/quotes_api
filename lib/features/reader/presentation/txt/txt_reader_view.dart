@@ -9,6 +9,7 @@ import '../../../../core/utils/app_log.dart';
 import '../../../../engines/txt/text_document.dart';
 import '../../domain/locator.dart';
 import '../../domain/search_hit.dart';
+import '../../domain/toc_entry.dart';
 import '../reader_engines.dart';
 import '../reader_view_controller.dart';
 
@@ -386,6 +387,10 @@ class _TextPagesState extends State<_TextPages> implements ReaderNavigator {
         ),
     ];
   }
+
+  /// Plain text has no table of contents.
+  @override
+  List<TocEntry> get contents => const [];
 
   // --- Building -------------------------------------------------------------
 

@@ -187,6 +187,29 @@ class ReaderCubit extends Cubit<ReaderState> {
     if (isClosed || position == state.position) return;
     emit(state.copyWith(position: position));
     _tracker?.update(position);
+    _recordPageCount(position.pageCount);
+  }
+
+  bool _pageCountRecorded = false;
+
+  /// A PDF imported without its password has no page count until opened.
+  void _recordPageCount(int? pageCount) {
+    final document = state.document;
+    if (_pageCountRecorded ||
+        pageCount == null ||
+        document == null ||
+        document.pageCount != null) {
+      return;
+    }
+    _pageCountRecorded = true;
+    unawaited(
+      _library.recordPageCount(document.id, pageCount).catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        AppLog.error('Recording the page count failed', error, stackTrace);
+      }),
+    );
   }
 
   void toggleChrome() =>

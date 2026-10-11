@@ -2,8 +2,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/app_log.dart';
-import '../../../../core/utils/formatters.dart';
 import '../../domain/search_hit.dart';
+import '../reader_labels.dart';
 import '../reader_view_controller.dart';
 
 /// Search inside the open document; choosing a result jumps to it.
@@ -134,7 +134,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: Text(formatPercent(hit.progress)),
+                      trailing: Text(locationLabel(hit.locator, hit.progress)),
                       onTap: () {
                         Navigator.of(context).pop();
                         widget.controller.goTo(

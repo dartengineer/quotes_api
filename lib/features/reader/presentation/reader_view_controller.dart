@@ -1,5 +1,8 @@
+import 'package:material_ui/material_ui.dart';
+
 import '../domain/locator.dart';
 import '../domain/search_hit.dart';
+import '../domain/toc_entry.dart';
 
 /// Navigation and queries that a format-specific reader view (TXT, PDF,
 /// EPUB) provides to the shared reader chrome.
@@ -19,6 +22,21 @@ abstract interface class ReaderNavigator {
 
   /// Finds text in the document. Implementations must not block the UI.
   Future<List<SearchHit>> search(String query);
+
+  /// The document's table of contents; empty if it has none (or it is not
+  /// known yet).
+  List<TocEntry> get contents;
+}
+
+/// A [ReaderNavigator] for documents made of fixed pages (PDF).
+abstract interface class PagedNavigator implements ReaderNavigator {
+  /// Zero when the document is not loaded yet.
+  int get pageCount;
+
+  void goToPage(int pageIndex);
+
+  /// A small rendering of a page, built lazily for page overviews.
+  Widget buildPageThumbnail(BuildContext context, int pageIndex);
 }
 
 /// Connects the reader chrome to whichever format view is showing, in the
@@ -28,6 +46,14 @@ class ReaderViewController {
   ReaderNavigator? _navigator;
 
   bool get isAttached => _navigator != null;
+
+  /// The attached view, if it has fixed pages.
+  PagedNavigator? get paged => switch (_navigator) {
+    final PagedNavigator paged when paged.pageCount > 0 => paged,
+    _ => null,
+  };
+
+  List<TocEntry> get contents => _navigator?.contents ?? const [];
 
   void attach(ReaderNavigator navigator) => _navigator = navigator;
 

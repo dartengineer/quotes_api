@@ -207,6 +207,20 @@ class LibraryRepository {
     });
   }
 
+  /// Fills in the page count of a document whose count was unknown (a PDF
+  /// imported without its password). A known count is never changed.
+  Future<void> recordPageCount(int id, int pageCount) async {
+    if (pageCount <= 0) return;
+    await (_db.update(
+      _docs,
+    )..where((d) => d.id.equals(id) & d.pageCount.isNull())).write(
+      DocumentsCompanion(
+        pageCount: Value(pageCount),
+        updatedAt: Value(_clock()),
+      ),
+    );
+  }
+
   /// Removes documents from the library and returns the removed rows so the
   /// caller can clean up the app's private copies.
   ///

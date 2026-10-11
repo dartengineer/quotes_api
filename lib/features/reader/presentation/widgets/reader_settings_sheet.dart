@@ -7,6 +7,7 @@ import '../../../../core/theme/reader_palette.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../domain/reader_preferences.dart';
 import '../reader_cubit.dart';
+import '../reader_engines.dart';
 
 Future<void> showReaderSettings(BuildContext context) {
   final cubit = context.read<ReaderCubit>();
@@ -28,6 +29,9 @@ class _ReaderSettingsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final cubit = context.read<ReaderCubit>();
     final prefs = context.select((ReaderCubit c) => c.state.preferences);
+    final format = context.select((ReaderCubit c) => c.state.document?.format);
+    // Typography applies only where text reflows; PDF pages keep their own.
+    final reflowable = format != null && ReaderEngines.isReflowable(format);
     final theme = Theme.of(context);
 
     void save(ReaderPreferences value) =>
@@ -44,74 +48,85 @@ class _ReaderSettingsSheet extends StatelessWidget {
             selected: prefs.theme,
             onSelected: (t) => save(prefs.copyWith(theme: t)),
           ),
-          const SizedBox(height: Spacing.lg),
-          SegmentedButton<ReaderFont>(
-            showSelectedIcon: false,
-            segments: [
-              for (final font in ReaderFont.values)
-                ButtonSegment(
-                  value: font,
-                  label: Text(
-                    font.label,
-                    style: TextStyle(fontFamily: font.family),
+          if (!reflowable) ...[
+            const SizedBox(height: Spacing.md),
+            Text(
+              'Pages are shown as they were designed. Pinch or double-tap '
+              'to zoom.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: Spacing.lg),
+            SegmentedButton<ReaderFont>(
+              showSelectedIcon: false,
+              segments: [
+                for (final font in ReaderFont.values)
+                  ButtonSegment(
+                    value: font,
+                    label: Text(
+                      font.label,
+                      style: TextStyle(fontFamily: font.family),
+                    ),
                   ),
-                ),
-            ],
-            selected: {prefs.font},
-            onSelectionChanged: (s) => save(prefs.copyWith(font: s.single)),
-          ),
-          const SizedBox(height: Spacing.md),
-          _Stepper(
-            label: 'Text size',
-            value: prefs.fontSize.round().toString(),
-            decreaseLabel: 'Smaller text',
-            increaseLabel: 'Larger text',
-            onDecrease: prefs.fontSize <= ReaderPreferences.minFontSize
-                ? null
-                : () => save(prefs.copyWith(fontSize: prefs.fontSize - 1)),
-            onIncrease: prefs.fontSize >= ReaderPreferences.maxFontSize
-                ? null
-                : () => save(prefs.copyWith(fontSize: prefs.fontSize + 1)),
-          ),
-          _SliderRow(
-            label: 'Line spacing',
-            value: prefs.lineHeight,
-            min: ReaderPreferences.minLineHeight,
-            max: ReaderPreferences.maxLineHeight,
-            divisions: 11,
-            display: prefs.lineHeight.toStringAsFixed(1),
-            onChanged: (v) =>
-                cubit.previewPreferences(prefs.copyWith(lineHeight: v)),
-            onChangeEnd: (v) => save(prefs.copyWith(lineHeight: v)),
-          ),
-          _SliderRow(
-            label: 'Paragraph spacing',
-            value: prefs.paragraphSpacing,
-            min: 0,
-            max: ReaderPreferences.maxParagraphSpacing,
-            divisions: 10,
-            display: prefs.paragraphSpacing.toStringAsFixed(1),
-            onChanged: (v) =>
-                cubit.previewPreferences(prefs.copyWith(paragraphSpacing: v)),
-            onChangeEnd: (v) => save(prefs.copyWith(paragraphSpacing: v)),
-          ),
-          _SliderRow(
-            label: 'Margins',
-            value: prefs.margin,
-            min: ReaderPreferences.minMargin,
-            max: ReaderPreferences.maxMargin,
-            divisions: 14,
-            display: prefs.margin.round().toString(),
-            onChanged: (v) =>
-                cubit.previewPreferences(prefs.copyWith(margin: v)),
-            onChangeEnd: (v) => save(prefs.copyWith(margin: v)),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Justify text'),
-            value: prefs.justify,
-            onChanged: (v) => save(prefs.copyWith(justify: v)),
-          ),
+              ],
+              selected: {prefs.font},
+              onSelectionChanged: (s) => save(prefs.copyWith(font: s.single)),
+            ),
+            const SizedBox(height: Spacing.md),
+            _Stepper(
+              label: 'Text size',
+              value: prefs.fontSize.round().toString(),
+              decreaseLabel: 'Smaller text',
+              increaseLabel: 'Larger text',
+              onDecrease: prefs.fontSize <= ReaderPreferences.minFontSize
+                  ? null
+                  : () => save(prefs.copyWith(fontSize: prefs.fontSize - 1)),
+              onIncrease: prefs.fontSize >= ReaderPreferences.maxFontSize
+                  ? null
+                  : () => save(prefs.copyWith(fontSize: prefs.fontSize + 1)),
+            ),
+            _SliderRow(
+              label: 'Line spacing',
+              value: prefs.lineHeight,
+              min: ReaderPreferences.minLineHeight,
+              max: ReaderPreferences.maxLineHeight,
+              divisions: 11,
+              display: prefs.lineHeight.toStringAsFixed(1),
+              onChanged: (v) =>
+                  cubit.previewPreferences(prefs.copyWith(lineHeight: v)),
+              onChangeEnd: (v) => save(prefs.copyWith(lineHeight: v)),
+            ),
+            _SliderRow(
+              label: 'Paragraph spacing',
+              value: prefs.paragraphSpacing,
+              min: 0,
+              max: ReaderPreferences.maxParagraphSpacing,
+              divisions: 10,
+              display: prefs.paragraphSpacing.toStringAsFixed(1),
+              onChanged: (v) =>
+                  cubit.previewPreferences(prefs.copyWith(paragraphSpacing: v)),
+              onChangeEnd: (v) => save(prefs.copyWith(paragraphSpacing: v)),
+            ),
+            _SliderRow(
+              label: 'Margins',
+              value: prefs.margin,
+              min: ReaderPreferences.minMargin,
+              max: ReaderPreferences.maxMargin,
+              divisions: 14,
+              display: prefs.margin.round().toString(),
+              onChanged: (v) =>
+                  cubit.previewPreferences(prefs.copyWith(margin: v)),
+              onChangeEnd: (v) => save(prefs.copyWith(margin: v)),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Justify text'),
+              value: prefs.justify,
+              onChanged: (v) => save(prefs.copyWith(justify: v)),
+            ),
+          ],
         ],
       ),
     );

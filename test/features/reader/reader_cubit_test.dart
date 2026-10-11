@@ -78,9 +78,12 @@ void main() {
       ReaderStatus.missingFile,
     );
 
-    final pdf = await addTestDocument(deps.library, format: DocumentFormat.pdf);
+    final epub = await addTestDocument(
+      deps.library,
+      format: DocumentFormat.epub,
+    );
     expect(
-      (await until(open(pdf), (s) => s.status != ReaderStatus.loading)).status,
+      (await until(open(epub), (s) => s.status != ReaderStatus.loading)).status,
       ReaderStatus.unsupported,
     );
   });

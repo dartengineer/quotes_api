@@ -67,8 +67,8 @@ yet; see the risks section of [AUDIT.md](AUDIT.md).
 - [x] Collections tab: create, rename, delete, browse a collection
 - [x] Home: import and search entry points; documents open details
 - [x] "Open with" / share intents: done in M3 (see below)
-- [x] Opening a document to read: TXT in M3; PDF and EPUB open their
-      details page until their readers arrive (M4-M5)
+- [x] Opening a document to read: TXT in M3, PDF in M4; EPUB opens its
+      details page until its reader arrives (M5)
 
 ## M3 - Reader core + TXT
 
@@ -117,13 +117,49 @@ yet; see the risks section of [AUDIT.md](AUDIT.md).
 
 ## M4 - PDF (pdfrx)
 
-- [ ] Continuous scrolling, zoom, page navigation, full-screen, landscape
-- [ ] Add `application/pdf` to the "Open with" intent filter
-- [ ] Page thumbnails, bounded caches, resource disposal
-- [ ] Text search with result navigation
-- [ ] Bookmarks by page; position restore
-- [ ] Password-protected, corrupted and unsupported PDF handling
-- [ ] Text selection
+- [x] Continuous vertical scrolling with fit-to-width pages, rendered
+      lazily by pdfrx's `PdfViewer` (verified working under `flutter test`
+      with the real PDFium build before building on it)
+- [x] Exact position restore (page + fraction of the page, independent of
+      zoom); the viewer's own initial placement centres short pages, so the
+      saved position is applied explicitly
+- [x] Rotation keeps the page and offset (tested by resizing the view)
+- [x] Double-tap zoom in/out; [~] pinch zoom (pdfrx's, not exercised by a
+      test)
+- [x] Tap zones (scroll a screen back/forward, middle toggles toolbars);
+      a tap first clears a text selection
+- [x] Page numbers in the bottom bar; slider labelled by page
+- [x] Go to page (validated), page thumbnails grid (lazy, rendered at
+      ≤72 dpi, current page marked), contents from the PDF outline (current
+      section marked; bounded and iterative against hostile outlines)
+- [x] Text search: whitespace-tolerant (matches across line breaks),
+      case-insensitive, results with context and page, jump and temporary
+      highlight; superseded searches stop early
+- [x] Bookmarks by page, with an excerpt of the page text
+- [x] Password-protected PDFs: password prompt, retry on a wrong
+      password, cancel shows an explanation with "Enter password". Passwords
+      are never stored, logged or offered to autofill
+- [x] Damaged PDFs are explained, with a retry
+- [x] Page count recorded when a PDF imported without its password is
+      first opened
+- [x] Text selection: long press selects a word (pdfrx); [~] its copy
+      menu is pdfrx's and not exercised by a test
+- [x] Internal links jump within the document; web links are shown with a
+      "Copy link" option and never opened (the app makes no network calls)
+- [x] Reading settings show themes only for PDFs (typography does not
+      apply to fixed pages)
+- [x] "Open with" offered for PDFs (`application/pdf` in the intent
+      filter)
+- [~] Memory bounds: rendered page images capped at 64 MB (pdfrx cache
+      limit), page texts kept for at most 24 pages; documents are released
+      when the reader closes (pdfrx reference counting). Not measured on a
+      device
+- [~] Performance with large PDFs (hundreds of pages, scans): not measured
+      on a device yet
+- [ ] Night mode for page content (dark pages); the night theme currently
+      darkens only the area around pages
+- [ ] Search results for very large PDFs appear only once the whole
+      document has been searched (no streaming or progress yet)
 
 ## M5 - EPUB (own engine, pending approval)
 

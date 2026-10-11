@@ -10,8 +10,10 @@ import 'package:lectern/features/reader/presentation/reader_cubit.dart';
 import 'package:lectern/features/reader/presentation/reader_screen.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
+import 'package:pdfrx/pdfrx.dart';
 
 import '../helpers/app_harness.dart';
+import '../helpers/fixtures.dart';
 import '../helpers/reader_fixtures.dart';
 import '../helpers/test_dependencies.dart';
 
@@ -34,6 +36,13 @@ void main() {
       p.join(deps.storage.temporaryDirectory.path, 'incoming', 'r${copies++}'),
     )..createSync(recursive: true);
     return File(p.join(directory.path, name))..writeAsStringSync(content);
+  }
+
+  File receivedCopyBytes(String name, List<int> bytes) {
+    final directory = Directory(
+      p.join(deps.storage.temporaryDirectory.path, 'incoming', 'r${copies++}'),
+    )..createSync(recursive: true);
+    return File(p.join(directory.path, name))..writeAsBytesSync(bytes);
   }
 
   Future<void> receive(
@@ -83,6 +92,20 @@ void main() {
     expect(find.byType(ReaderScreen), findsNothing);
     expect(find.text('Import finished'), findsNothing);
 
+    await unmountApp(tester);
+  });
+
+  testWidgets('"Open with" a PDF opens it in the PDF reader', (tester) async {
+    final pdfium = await tester.runAsync(initializePdfiumForTests);
+    if (pdfium != true) return markTestSkipped('PDFium not available');
+    await pumpApp(tester, deps);
+    final copy = receivedCopyBytes('Report.pdf', textPdf(pagedText(4)));
+
+    await receive(tester, action: 'open', copy: copy);
+    await pumpUntil(tester, () => showsReaderFor(tester, 'Report'));
+    await settle(tester);
+    expect(find.byType(PdfViewer), findsOneWidget);
+    expect(readerState(tester)!.position!.pageCount, 4);
     await unmountApp(tester);
   });
 

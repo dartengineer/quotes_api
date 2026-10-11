@@ -71,18 +71,24 @@ class ErrorStateView extends StatelessWidget {
     this.title = 'Something went wrong',
     required this.message,
     this.onRetry,
+    this.icon = Icons.error_outline,
+    this.retryLabel = 'Try again',
+    this.retryIcon = Icons.refresh,
   });
 
   final String title;
   final String message;
   final VoidCallback? onRetry;
+  final IconData icon;
+  final String retryLabel;
+  final IconData retryIcon;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return _CenteredMessage(
       children: [
-        Icon(Icons.error_outline, size: 56, color: theme.colorScheme.error),
+        Icon(icon, size: 56, color: theme.colorScheme.error),
         const SizedBox(height: Spacing.lg),
         Text(
           title,
@@ -101,8 +107,8 @@ class ErrorStateView extends StatelessWidget {
           const SizedBox(height: Spacing.xl),
           FilledButton.tonalIcon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Try again'),
+            icon: Icon(retryIcon),
+            label: Text(retryLabel),
           ),
         ],
       ],

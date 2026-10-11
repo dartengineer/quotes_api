@@ -32,6 +32,112 @@ Uint8List minimalPdf({int pages = 1}) {
   return Uint8List.fromList(latin1.encode(buffer.toString()));
 }
 
+/// Builds a PDF whose pages show [pages] (one string per page, lines split
+/// on `\n`) in Helvetica, so PDFium can extract and search the text.
+///
+/// [outline] adds a table of contents: titles pointing at zero-based page
+/// indices. [links] adds link areas: on page `from`, the rectangle (in PDF
+/// points, origin bottom-left) leads to page index `to` (an [int]) or a
+/// web address (a [String]). [pageSize] is in points.
+Uint8List textPdf(
+  List<String> pages, {
+  List<(String, int)> outline = const [],
+  List<({int from, (int, int, int, int) rect, Object to})> links = const [],
+  (int, int) pageSize = (300, 400),
+}) {
+  final (width, height) = pageSize;
+  final objects = <String>[];
+  int add(String body) {
+    objects.add(body);
+    return objects.length;
+  }
+
+  String escape(String text) => text
+      .replaceAll(r'\', r'\\')
+      .replaceAll('(', r'\(')
+      .replaceAll(')', r'\)');
+
+  add('<< /Type /Catalog /Pages 2 0 R >>');
+  add(''); // the page tree, filled in below
+  add(
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica '
+    '/Encoding /WinAnsiEncoding >>',
+  );
+  // Page objects first, so links and the outline can refer to any page.
+  final pageIds = [for (final _ in pages) add('')];
+  for (final (index, text) in pages.indexed) {
+    final lines = text.split('\n');
+    final content = StringBuffer('BT /F1 12 Tf 14 TL 20 ${height - 40} Td ');
+    for (final (i, line) in lines.indexed) {
+      if (i > 0) content.write('T* ');
+      content.write('(${escape(line)}) Tj ');
+    }
+    content.write('ET');
+    final stream = content.toString();
+    final contentId = add(
+      '<< /Length ${latin1.encode(stream).length} >>\nstream\n$stream\nendstream',
+    );
+    final annotations = [
+      for (final link in links.where((l) => l.from == index))
+        add(
+          '<< /Type /Annot /Subtype /Link /Border [0 0 0] '
+          '/Rect [${link.rect.$1} ${link.rect.$2} ${link.rect.$3} ${link.rect.$4}] '
+          '${switch (link.to) {
+            final int page => '/Dest [${pageIds[page]} 0 R /XYZ 0 $height 0]',
+            final String url => '/A << /S /URI /URI (${escape(url)}) >>',
+            _ => throw ArgumentError(link.to),
+          }} >>',
+        ),
+    ];
+    objects[pageIds[index] - 1] =
+        '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 $width $height] '
+        '/Resources << /Font << /F1 3 0 R >> >> /Contents $contentId 0 R '
+        '${annotations.isEmpty ? '' : '/Annots [${annotations.map((id) => '$id 0 R').join(' ')}] '}>>';
+  }
+  objects[1] =
+      '<< /Type /Pages /Kids [${pageIds.map((id) => '$id 0 R').join(' ')}] '
+      '/Count ${pageIds.length} >>';
+
+  if (outline.isNotEmpty) {
+    final rootId = objects.length + 1;
+    final firstItem = rootId + 1;
+    final lastItem = rootId + outline.length;
+    add(
+      '<< /Type /Outlines /First $firstItem 0 R /Last $lastItem 0 R '
+      '/Count ${outline.length} >>',
+    );
+    for (final (i, (title, pageIndex)) in outline.indexed) {
+      final id = firstItem + i;
+      add(
+        '<< /Title (${escape(title)}) /Parent $rootId 0 R '
+        '${i > 0 ? '/Prev ${id - 1} 0 R ' : ''}'
+        '${id < lastItem ? '/Next ${id + 1} 0 R ' : ''}'
+        '/Dest [${pageIds[pageIndex]} 0 R /XYZ 0 $height 0] >>',
+      );
+    }
+    objects[0] =
+        '<< /Type /Catalog /Pages 2 0 R /Outlines $rootId 0 R '
+        '/PageMode /UseOutlines >>';
+  }
+
+  final buffer = StringBuffer('%PDF-1.4\n');
+  final offsets = <int>[];
+  for (var i = 0; i < objects.length; i++) {
+    offsets.add(latin1.encode(buffer.toString()).length);
+    buffer.write('${i + 1} 0 obj\n${objects[i]}\nendobj\n');
+  }
+  final xref = latin1.encode(buffer.toString()).length;
+  buffer.write('xref\n0 ${objects.length + 1}\n0000000000 65535 f \n');
+  for (final offset in offsets) {
+    buffer.write('${offset.toString().padLeft(10, '0')} 00000 n \n');
+  }
+  buffer.write(
+    'trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n'
+    'startxref\n$xref\n%%EOF\n',
+  );
+  return Uint8List.fromList(latin1.encode(buffer.toString()));
+}
+
 /// A small solid-colour PNG.
 Uint8List pngImage({int width = 60, int height = 90}) {
   final image = img.Image(width: width, height: height);

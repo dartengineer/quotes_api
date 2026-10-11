@@ -61,29 +61,49 @@ final class TextLocator extends Locator {
 }
 
 /// A position in a PDF: a zero-based page index plus how far down that page
-/// (0 = top, 1 = bottom) the reading position is.
+/// (0 = top, 1 = bottom) the reading position is. Both are independent of
+/// zoom and screen size.
+///
+/// [charIndex] optionally pins a character in the page's text as PDFium
+/// extracts it (its raw text order), for search results and, later,
+/// highlights.
 final class PdfLocator extends Locator {
-  const PdfLocator(this.pageIndex, {this.pageOffset = 0})
-    : assert(pageIndex >= 0);
+  const PdfLocator(this.pageIndex, {this.pageOffset = 0, this.charIndex})
+    : assert(pageIndex >= 0),
+      assert(charIndex == null || charIndex >= 0);
 
   static const type = 'pdf';
 
   final int pageIndex;
   final double pageOffset;
+  final int? charIndex;
 
   static PdfLocator? _fromJson(Map<String, Object?> json) {
     final page = json['p'];
     final offset = json['y'];
+    final char = json['c'];
     if (page is! int || page < 0) return null;
     final y = offset is num ? offset.toDouble().clamp(0.0, 1.0) : 0.0;
-    return PdfLocator(page, pageOffset: y);
+    return PdfLocator(
+      page,
+      pageOffset: y,
+      charIndex: char is int && char >= 0 ? char : null,
+    );
   }
 
   @override
-  Map<String, Object?> toJson() => {'t': type, 'p': pageIndex, 'y': pageOffset};
+  Map<String, Object?> toJson() => {
+    't': type,
+    'p': pageIndex,
+    'y': pageOffset,
+    'c': ?charIndex,
+  };
 
   @override
-  List<Object?> get props => [pageIndex, pageOffset];
+  List<Object?> get props => [pageIndex, pageOffset, charIndex];
+
+  @override
+  String toString() => 'PdfLocator($pageIndex, $pageOffset, $charIndex)';
 }
 
 /// A position in an EPUB: the spine item (by archive path, which is stable
@@ -136,6 +156,7 @@ class ReaderPosition extends Equatable {
     required this.locator,
     required this.progress,
     this.visibleEnd,
+    this.pageCount,
   });
 
   /// The start of the visible content.
@@ -147,6 +168,9 @@ class ReaderPosition extends Equatable {
   /// The end of the visible content, if the format can tell. Used to decide
   /// whether a bookmark is "on screen".
   final Locator? visibleEnd;
+
+  /// Number of pages, for formats with fixed pages (PDF).
+  final int? pageCount;
 
   /// Whether [other] lies within the visible content.
   bool shows(Locator other) {
@@ -174,5 +198,5 @@ class ReaderPosition extends Equatable {
   }
 
   @override
-  List<Object?> get props => [locator, progress, visibleEnd];
+  List<Object?> get props => [locator, progress, visibleEnd, pageCount];
 }

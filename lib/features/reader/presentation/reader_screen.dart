@@ -11,10 +11,12 @@ import '../../../core/theme/reader_palette.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/state_views.dart';
+import '../domain/locator.dart';
 import 'reader_cubit.dart';
 import 'reader_engines.dart';
 import 'reader_view_controller.dart';
 import 'widgets/bookmarks_sheet.dart';
+import 'widgets/navigation_sheets.dart';
 import 'widgets/reader_settings_sheet.dart';
 import 'widgets/search_sheet.dart';
 
@@ -204,7 +206,7 @@ class _ChromeSlide extends StatelessWidget {
   }
 }
 
-enum _MenuAction { details }
+enum _MenuAction { contents, pages, goToPage, details }
 
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.controller});
@@ -273,13 +275,26 @@ class _TopBar extends StatelessWidget {
                 ),
                 PopupMenuButton<_MenuAction>(
                   tooltip: 'More options',
-                  onSelected: (action) => switch (action) {
-                    _MenuAction.details => unawaited(
-                      context.push(Routes.document(document.id)),
-                    ),
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
+                  onSelected: (action) => _onMenu(context, action),
+                  // Built when opened, so it reflects what the loaded
+                  // document offers.
+                  itemBuilder: (_) => [
+                    if (controller.contents.isNotEmpty)
+                      const PopupMenuItem(
+                        value: _MenuAction.contents,
+                        child: Text('Contents'),
+                      ),
+                    if (controller.paged != null) ...const [
+                      PopupMenuItem(
+                        value: _MenuAction.pages,
+                        child: Text('Pages'),
+                      ),
+                      PopupMenuItem(
+                        value: _MenuAction.goToPage,
+                        child: Text('Go to page…'),
+                      ),
+                    ],
+                    const PopupMenuItem(
                       value: _MenuAction.details,
                       child: Text('Document details'),
                     ),
@@ -291,6 +306,21 @@ class _TopBar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _onMenu(BuildContext context, _MenuAction action) {
+    final document = context.read<ReaderCubit>().state.document!;
+    final paged = controller.paged;
+    switch (action) {
+      case _MenuAction.contents:
+        unawaited(showContentsSheet(context, controller));
+      case _MenuAction.pages:
+        if (paged != null) unawaited(showPagesSheet(context, paged));
+      case _MenuAction.goToPage:
+        if (paged != null) unawaited(showGoToPageDialog(context, paged));
+      case _MenuAction.details:
+        unawaited(context.push(Routes.document(document.id)));
+    }
   }
 }
 
@@ -312,7 +342,23 @@ class _BottomBarState extends State<_BottomBar> {
     final progress = context.select(
       (ReaderCubit c) => c.state.position?.progress ?? 0,
     );
+    final pageCount = context.select(
+      (ReaderCubit c) => c.state.position?.pageCount,
+    );
+    final currentPage = context.select((ReaderCubit c) {
+      final locator = c.state.position?.locator;
+      return locator is PdfLocator ? locator.pageIndex + 1 : null;
+    });
     final value = _dragValue ?? progress;
+    // Documents with fixed pages show page numbers instead of percentages.
+    String label(double v) => pageCount == null
+        ? formatPercent(v)
+        : '${_pageAt(v, pageCount)} / $pageCount';
+    final trailing = pageCount != null && currentPage != null
+        ? _dragValue == null
+              ? '$currentPage / $pageCount'
+              : label(value)
+        : formatPercent(value);
     final scheme = Theme.of(context).colorScheme;
     return _ChromeSlide(
       fromTop: false,
@@ -333,9 +379,10 @@ class _BottomBarState extends State<_BottomBar> {
                 Expanded(
                   child: Slider(
                     value: value.clamp(0.0, 1.0),
-                    semanticFormatterCallback: (v) =>
-                        'Reading position ${formatPercent(v)}',
-                    label: formatPercent(value),
+                    semanticFormatterCallback: (v) => pageCount == null
+                        ? 'Reading position ${formatPercent(v)}'
+                        : 'Page ${_pageAt(v, pageCount)} of $pageCount',
+                    label: label(value),
                     onChanged: (v) => setState(() => _dragValue = v),
                     onChangeEnd: (v) {
                       setState(() => _dragValue = null);
@@ -343,10 +390,10 @@ class _BottomBarState extends State<_BottomBar> {
                     },
                   ),
                 ),
-                SizedBox(
-                  width: 48,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 48),
                   child: Text(
-                    formatPercent(value),
+                    trailing,
                     textAlign: TextAlign.end,
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
@@ -359,3 +406,7 @@ class _BottomBarState extends State<_BottomBar> {
     );
   }
 }
+
+/// The page (1-based) a slider position leads to.
+int _pageAt(double progress, int pageCount) =>
+    (progress * pageCount).floor().clamp(0, pageCount - 1) + 1;

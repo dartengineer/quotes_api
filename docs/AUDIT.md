@@ -61,7 +61,7 @@ lib/
     files/                   LibraryStorage: private library directory, hashing
   engines/                   format engines shared by import and readers
     epub/                    package parser (container, OPF, cover, DRM...)
-    pdf/                     PDFium inspection via pdfrx
+    pdf/                     PDFium inspection, text search helpers
   features/
     home/ library/ collections/ settings/
     import/                  format detection, importer, picker, progress UI

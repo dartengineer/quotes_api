@@ -185,6 +185,18 @@ void main() {
   });
 
   group('status and opening', () {
+    test(
+      'an unknown page count is filled in once, never overwritten',
+      () async {
+        final id = await addTestDocument(library);
+        expect((await library.findById(id))!.pageCount, isNull);
+        await library.recordPageCount(id, 12);
+        expect((await library.findById(id))!.pageCount, 12);
+        await library.recordPageCount(id, 99);
+        expect((await library.findById(id))!.pageCount, 12);
+      },
+    );
+
     test('opening an unread document marks it reading', () async {
       final id = await addTestDocument(library);
       await library.markOpened(id);

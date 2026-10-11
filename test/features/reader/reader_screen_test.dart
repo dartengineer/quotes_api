@@ -215,18 +215,18 @@ void main() {
     await unmountApp(tester);
   });
 
-  testWidgets('PDFs open their details until the PDF reader exists', (
+  testWidgets('EPUBs open their details until the EPUB reader exists', (
     tester,
   ) async {
-    final pdf = await addTestDocument(
+    final epub = await addTestDocument(
       deps.library,
-      title: 'A PDF',
-      format: DocumentFormat.pdf,
+      title: 'A book',
+      format: DocumentFormat.epub,
     );
     final txt = await addTextFile(deps, title: 'A text', content: 'Hello');
     await pumpApp(tester, deps, location: Routes.library);
 
-    await tester.tap(find.byKey(ValueKey(pdf)));
+    await tester.tap(find.byKey(ValueKey(epub)));
     await settle(tester);
     expect(find.byType(ReaderScreen), findsNothing);
     expect(find.text('Reading status'), findsOneWidget);

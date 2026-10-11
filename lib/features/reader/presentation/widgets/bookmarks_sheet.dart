@@ -4,8 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/theme/tokens.dart';
-import '../../../../core/utils/formatters.dart';
 import '../reader_cubit.dart';
+import '../reader_labels.dart';
 import '../reader_view_controller.dart';
 
 Future<void> showBookmarksSheet(
@@ -77,7 +77,8 @@ class _BookmarksSheet extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      '${formatPercent(bookmark.progress)} · $date',
+                      '${locationLabel(bookmark.locator, bookmark.progress)}'
+                      ' · $date',
                     ),
                     trailing: IconButton(
                       tooltip: 'Delete bookmark',

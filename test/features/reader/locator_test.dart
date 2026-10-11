@@ -8,6 +8,7 @@ void main() {
       const TextLocator(123456),
       const PdfLocator(0),
       const PdfLocator(41, pageOffset: 0.25),
+      const PdfLocator(3, pageOffset: 0.5, charIndex: 120),
       const EpubLocator(href: 'OEBPS/ch1.xhtml', offset: 99, progression: 0.5),
     ]) {
       test('$locator', () {
@@ -21,6 +22,23 @@ void main() {
     expect(
       const PdfLocator(2, pageOffset: 0.5).encode(),
       '{"t":"pdf","p":2,"y":0.5}',
+    );
+  });
+
+  test('the optional PDF character index is omitted when absent', () {
+    expect(
+      const PdfLocator(2, charIndex: 9).encode(),
+      '{"t":"pdf","p":2,"y":0.0,"c":9}',
+    );
+    // Positions saved before it existed still decode, and a bad index is
+    // dropped rather than rejecting the position.
+    expect(
+      Locator.decode('{"t":"pdf","p":1,"y":0.5}'),
+      const PdfLocator(1, pageOffset: 0.5),
+    );
+    expect(
+      Locator.decode('{"t":"pdf","p":1,"y":0.5,"c":-4}'),
+      const PdfLocator(1, pageOffset: 0.5),
     );
   });
 
