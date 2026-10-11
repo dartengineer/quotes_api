@@ -96,6 +96,29 @@ class LibraryRepository {
     return select.map((row) => row.read(count) ?? 0).watchSingle();
   }
 
+  /// Watches one document; emits null once it has been removed.
+  Stream<LibraryDocument?> watchDocument(int id) {
+    final select = _listSelect()..where(_docs.id.equals(id));
+    return select.watchSingleOrNull().map(
+      (row) => row == null ? null : _mapRow(row),
+    );
+  }
+
+  /// Rarely needed, potentially large metadata, loaded separately from
+  /// [LibraryDocument].
+  Future<DocumentDetails?> getDetails(int id) async {
+    final select = _db.selectOnly(_docs)
+      ..addColumns([_docs.description, _docs.publisher, _docs.language])
+      ..where(_docs.id.equals(id));
+    final row = await select.getSingleOrNull();
+    if (row == null) return null;
+    return DocumentDetails(
+      description: row.read(_docs.description),
+      publisher: row.read(_docs.publisher),
+      language: row.read(_docs.language),
+    );
+  }
+
   Future<LibraryDocument?> findById(int id) async {
     final select = _listSelect()..where(_docs.id.equals(id));
     final row = await select.getSingleOrNull();

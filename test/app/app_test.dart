@@ -4,14 +4,16 @@ import 'package:lectern/app/dependencies.dart';
 import 'package:lectern/features/settings/domain/app_settings.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../helpers/test_database.dart';
+import '../helpers/test_dependencies.dart';
 
 void main() {
   late AppDependencies deps;
 
-  setUp(() {
-    deps = AppDependencies(createTestDatabase());
+  setUp(() async {
+    deps = await createTestDependencies();
   });
+
+  tearDown(() => disposeTestDependencies(deps));
 
   /// Pumps the app on a phone-sized screen unless [size] says otherwise.
   Future<void> pumpApp(
@@ -29,9 +31,9 @@ void main() {
   }
 
   Future<void> disposeApp(WidgetTester tester) async {
-    // Unmount first so cubits cancel their database streams, then close.
+    // Unmount so cubits cancel their database streams before tearDown
+    // closes the database.
     await tester.pumpWidget(const SizedBox.shrink());
-    await deps.dispose();
   }
 
   testWidgets('starts on an empty home screen and switches tabs', (
@@ -42,9 +44,15 @@ void main() {
     expect(find.text('Welcome to Lectern'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
 
-    await tester.tap(find.text('Open library'));
+    expect(find.text('Import documents'), findsOneWidget);
+
+    await tester.tap(find.text('Library'));
     await tester.pumpAndSettle();
     expect(find.text('No documents yet'), findsOneWidget);
+
+    await tester.tap(find.text('Collections'));
+    await tester.pumpAndSettle();
+    expect(find.text('No collections yet'), findsOneWidget);
 
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();

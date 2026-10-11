@@ -1,16 +1,58 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../data/files/library_storage.dart';
 import '../../domain/document_format.dart';
 import '../../domain/library_document.dart';
 
-/// A cover for documents without cover art: a tinted "book" with the title.
+/// A document's cover: its thumbnail if one was generated at import,
+/// otherwise a tinted "book" showing the title.
 ///
-/// The tint is derived from the content hash, so a document keeps the same
-/// colour across launches. The cover is decorative; titles are announced by
-/// the surrounding tile, so it is excluded from semantics.
+/// Covers are decorative; titles are announced by the surrounding tile, so
+/// they are excluded from semantics.
 class DocumentCover extends StatelessWidget {
   const DocumentCover({super.key, required this.document});
+
+  final LibraryDocument document;
+
+  @override
+  Widget build(BuildContext context) {
+    final coverPath = document.coverPath;
+    if (coverPath == null) return _GeneratedCover(document: document);
+    final file = context.read<LibraryStorage>().resolve(coverPath);
+    return ExcludeSemantics(
+      child: ClipRRect(
+        borderRadius: Radii.smAll,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Decode at display size, never at the thumbnail's full size.
+            final dpr = MediaQuery.devicePixelRatioOf(context);
+            final width = constraints.maxWidth;
+            final cacheWidth = width.isFinite && width > 0
+                ? (width * dpr).round()
+                : null;
+            return Image.file(
+              file,
+              cacheWidth: cacheWidth,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              gaplessPlayback: true,
+              errorBuilder: (context, error, stackTrace) =>
+                  _GeneratedCover(document: document),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// The tint is derived from the content hash, so a document keeps the same
+/// colour across launches.
+class _GeneratedCover extends StatelessWidget {
+  const _GeneratedCover({required this.document});
 
   final LibraryDocument document;
 

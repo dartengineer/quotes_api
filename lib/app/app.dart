@@ -4,6 +4,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/widgets/state_views.dart';
+import '../features/import/presentation/import_cubit.dart';
+import '../features/library/presentation/library_search_request.dart';
 import '../features/settings/domain/app_settings.dart';
 import '../features/settings/presentation/settings_cubit.dart';
 import 'app_info.dart';
@@ -31,6 +33,7 @@ class _LecternAppState extends State<LecternApp> {
   late final GoRouter _router = buildRouter(
     initialLocation: widget.initialLocation,
   );
+  final _searchRequests = LibrarySearchRequest();
 
   @override
   void dispose() {
@@ -46,10 +49,21 @@ class _LecternAppState extends State<LecternApp> {
         RepositoryProvider.value(value: deps.library),
         RepositoryProvider.value(value: deps.collections),
         RepositoryProvider.value(value: deps.settings),
+        RepositoryProvider.value(value: deps.storage),
+        RepositoryProvider.value(value: deps.manager),
+        RepositoryProvider.value(value: _searchRequests),
       ],
-      child: BlocProvider(
-        create: (context) =>
-            SettingsCubit(deps.settings, widget.initialSettings),
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (context) =>
+                SettingsCubit(deps.settings, widget.initialSettings),
+          ),
+          BlocProvider(
+            create: (context) =>
+                ImportCubit(picker: deps.picker, importer: deps.importer),
+          ),
+        ],
         child: BlocBuilder<SettingsCubit, AppSettings>(
           buildWhen: (previous, current) =>
               previous.themePreference != current.themePreference,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -9,7 +11,9 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/utils/load_status.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../import/presentation/import_cubit.dart';
 import '../../library/domain/library_document.dart';
+import '../../library/presentation/library_search_request.dart';
 import '../../library/presentation/widgets/document_cover.dart';
 import '../../library/presentation/widgets/document_tiles.dart';
 import 'home_cubit.dart';
@@ -20,7 +24,24 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppInfo.name)),
+      appBar: AppBar(
+        title: const Text(AppInfo.name),
+        actions: [
+          IconButton(
+            tooltip: 'Search library',
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              context.read<LibrarySearchRequest>().request();
+              context.go(Routes.library);
+            },
+          ),
+          IconButton(
+            tooltip: 'Import documents',
+            icon: const Icon(Icons.add),
+            onPressed: () => context.read<ImportCubit>().pickAndImport(),
+          ),
+        ],
+      ),
       body: BlocBuilder<HomeCubit, HomeState>(
         builder: (context, state) {
           return switch (state.status) {
@@ -32,10 +53,13 @@ class HomeScreen extends StatelessWidget {
             LoadStatus.ready when state.isLibraryEmpty => EmptyStateView(
               icon: Icons.auto_stories_outlined,
               title: 'Welcome to ${AppInfo.name}',
-              message: 'Books and documents you are reading will show up here.',
-              action: FilledButton.tonal(
-                onPressed: () => context.go(Routes.library),
-                child: const Text('Open library'),
+              message:
+                  'Import PDF, EPUB or TXT files to start your library. '
+                  'Everything stays on this device.',
+              action: FilledButton.icon(
+                onPressed: () => context.read<ImportCubit>().pickAndImport(),
+                icon: const Icon(Icons.add),
+                label: const Text('Import documents'),
               ),
             ),
             LoadStatus.ready => _HomeContent(state: state),
@@ -44,6 +68,10 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+void _openDocument(BuildContext context, LibraryDocument document) {
+  unawaited(context.push(Routes.document(document.id)));
 }
 
 class _HomeContent extends StatelessWidget {
@@ -90,48 +118,52 @@ class _ContinueReadingCard extends StatelessWidget {
     return Card(
       child: Semantics(
         label: documentSemanticsLabel(document),
+        button: true,
         excludeSemantics: true,
-        child: Padding(
-          padding: const EdgeInsets.all(Spacing.md),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 72,
-                height: 104,
-                child: DocumentCover(document: document),
-              ),
-              const SizedBox(width: Spacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      document.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    if (document.author case final author?)
-                      Text(
-                        author,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    const SizedBox(height: Spacing.md),
-                    ReadingProgressBar(progress: document.progress),
-                    const SizedBox(height: Spacing.xs),
-                    Text(
-                      '${formatPercent(document.progress)} read',
-                      style: theme.textTheme.labelMedium,
-                    ),
-                  ],
+        child: InkWell(
+          onTap: () => _openDocument(context, document),
+          child: Padding(
+            padding: const EdgeInsets.all(Spacing.md),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 72,
+                  height: 104,
+                  child: DocumentCover(document: document),
                 ),
-              ),
-            ],
+                const SizedBox(width: Spacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        document.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if (document.author case final author?)
+                        Text(
+                          author,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      const SizedBox(height: Spacing.md),
+                      ReadingProgressBar(progress: document.progress),
+                      const SizedBox(height: Spacing.xs),
+                      Text(
+                        '${formatPercent(document.progress)} read',
+                        style: theme.textTheme.labelMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -164,7 +196,10 @@ class _CoverStrip extends StatelessWidget {
           return SizedBox(
             key: ValueKey(document.id),
             width: _tileWidth,
-            child: DocumentGridTile(document: document),
+            child: DocumentGridTile(
+              document: document,
+              onTap: () => _openDocument(context, document),
+            ),
           );
         },
       ),

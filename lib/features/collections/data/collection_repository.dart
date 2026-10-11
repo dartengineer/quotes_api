@@ -40,6 +40,13 @@ class CollectionRepository {
     );
   }
 
+  /// Watches one collection; emits null once it has been deleted.
+  Stream<LibraryCollection?> watchCollection(int id) {
+    return watchCollections().map(
+      (all) => all.where((c) => c.id == id).firstOrNull,
+    );
+  }
+
   /// Watches the ids of the collections containing [documentId].
   Stream<Set<int>> watchCollectionIdsFor(int documentId) {
     final m = _db.documentCollections;

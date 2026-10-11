@@ -4,8 +4,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lectern/core/utils/cancellation.dart';
 import 'package:lectern/data/database/app_database.dart';
+import 'package:lectern/data/files/library_storage.dart';
+import 'package:lectern/engines/pdf/pdf_inspector.dart';
 import 'package:lectern/features/import/data/document_importer.dart';
-import 'package:lectern/features/import/data/library_storage.dart';
 import 'package:lectern/features/import/domain/import_outcome.dart';
 import 'package:lectern/features/library/data/library_repository.dart';
 import 'package:lectern/features/library/domain/document_format.dart';
@@ -35,7 +36,12 @@ void main() {
     );
     await storage.ensureDirectories();
     await Directory('${base.path}/user').create();
-    importer = DocumentImporter(library: library, storage: storage);
+    importer = DocumentImporter(
+      library: library,
+      storage: storage,
+      // pdfrx is initialised for tests in setUpAll.
+      pdfInspector: PdfrxInspector(initialize: () async {}),
+    );
   });
 
   tearDown(() async {
@@ -128,7 +134,7 @@ void main() {
 
   group('PDF', () {
     test('imports page count and a first-page thumbnail', () async {
-      if (!pdfiumAvailable) markTestSkipped('PDFium not available');
+      if (!pdfiumAvailable) return markTestSkipped('PDFium not available');
       final outcome = await importer.importFile(
         userFile('report_2026.pdf', minimalPdf(pages: 3)),
       );
@@ -142,7 +148,7 @@ void main() {
     });
 
     test('imports a password-protected PDF without reading it', () async {
-      if (!pdfiumAvailable) markTestSkipped('PDFium not available');
+      if (!pdfiumAvailable) return markTestSkipped('PDFium not available');
       final outcome = await importer.importFile(
         userFile(
           'secret.pdf',
@@ -156,7 +162,7 @@ void main() {
     });
 
     test('opens a permissions-only PDF normally', () async {
-      if (!pdfiumAvailable) markTestSkipped('PDFium not available');
+      if (!pdfiumAvailable) return markTestSkipped('PDFium not available');
       final outcome = await importer.importFile(
         userFile(
           'restricted.pdf',
@@ -168,7 +174,7 @@ void main() {
     });
 
     test('rejects a damaged PDF', () async {
-      if (!pdfiumAvailable) markTestSkipped('PDFium not available');
+      if (!pdfiumAvailable) return markTestSkipped('PDFium not available');
       final outcome = await importer.importFile(
         userFile(
           'broken.pdf',

@@ -48,22 +48,24 @@ SQL, files, or parsers directly.
 
 ```
 lib/
-  main.dart                  bootstrap: open DB, load settings, runApp
-  app/                       App widget, router, dependency wiring
+  main.dart                  bootstrap: open DB + storage, load settings, runApp
+  app/                       App widget, router, shell, dependency wiring
   core/
-    theme/                   tokens (colour, spacing, radii, type), ThemeData, reader palettes
-    widgets/                 shared states (empty / error / loading), section header, dialogs
-    utils/                   debouncer, safe logging helpers
-  data/database/             drift schema, migrations, generated code
+    theme/                   tokens (colour, spacing, radii, type), ThemeData
+    widgets/                 shared states (empty / error / loading), dialogs
+    files/                   SafeZip: bounded, traversal-safe zip access
+    images/                  cover thumbnail encoding
+    utils/                   cancellation, killable isolates, text cleanup
+  data/
+    database/                drift schema, migrations, generated code
+    files/                   LibraryStorage: private library directory, hashing
+  engines/                   format engines shared by import and readers
+    epub/                    package parser (container, OPF, cover, DRM...)
+    pdf/                     PDFium inspection via pdfrx
   features/
-    library/                 domain (Document, enums, sort/filter), repository, cubits, screens
-    collections/             repository (+ UI in M2)
-    settings/                repository, cubit, screen
-    home/                    home cubit + screen
-    import/          (M2)    picker, format sniffing, hashing, copy, metadata, thumbnails
-    reader/
-      common/        (M3)    locators, debounced progress saving, bookmarks, reader chrome
-      txt/ pdf/ epub/(M3-M5) one reader per engine, behind a shared contract
+    home/ library/ collections/ settings/
+    import/                  format detection, importer, picker, progress UI
+    reader/          (M3+)   locators, progress saving, bookmarks, readers
 ```
 
 * **State management**: `flutter_bloc` (Cubits). Repositories are injected with

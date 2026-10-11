@@ -5,9 +5,9 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../../core/utils/cancellation.dart';
-import '../../../core/utils/isolates.dart';
-import '../../library/domain/document_format.dart';
+import '../../core/utils/cancellation.dart';
+import '../../core/utils/isolates.dart';
+import '../../features/library/domain/document_format.dart';
 import 'file_hashing.dart';
 
 /// A file copied into the library's staging area, not yet committed.

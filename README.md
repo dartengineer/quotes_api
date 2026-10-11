@@ -2,15 +2,18 @@
 
 An offline-first ebook and document reader for Android, built with Flutter.
 
-> Status: foundation milestone (M1). Importing and reading documents are not
-> implemented yet - see [docs/ROADMAP.md](docs/ROADMAP.md).
+> Status: import and library management (M2) are in place. Opening a
+> document to read arrives with the readers (M3-M5) - see
+> [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Principles
 
 - **Offline first.** Everything works without a network connection. The app
   makes no network calls.
 - **Private.** Documents, reading progress and notes stay on the device. App
-  data is excluded from Android cloud backup.
+  data is excluded from Android cloud backup. No storage permission is
+  requested: you pick files with the system picker and the app keeps its own
+  copy; your original files are never modified.
 - **Honest about formats.** Only formats with a working, tested reader are
   advertised. Planned: PDF, EPUB (reflowable) and TXT.
 
@@ -23,9 +26,10 @@ audit, dependency evaluation and design decisions.
 ```
 lib/
   app/        app widget, router, shell, dependency wiring
-  core/       theme tokens, shared widgets, utilities
-  data/       database schema and migrations
-  features/   home, library, collections, settings (reader engines to come)
+  core/       theme tokens, shared widgets, utilities (zip, images, isolates)
+  data/       database schema and migrations; private library storage
+  engines/    format engines (EPUB package parser, PDF inspection)
+  features/   home, library, collections, import, settings
 ```
 
 ## Development
@@ -38,6 +42,10 @@ dart run build_runner build      # regenerate drift code after schema edits
 flutter analyze
 flutter test
 ```
+
+PDF tests use the real PDFium engine. Its host build is downloaded by the
+`pdfium_dart` build hook into `.dart_tool/` on the first `flutter test`; if it
+is unavailable the PDF tests are skipped and say so.
 
 ### Database changes
 

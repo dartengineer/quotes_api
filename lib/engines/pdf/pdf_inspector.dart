@@ -38,10 +38,15 @@ abstract interface class PdfInspector {
 /// [PdfInspector] backed by PDFium through pdfrx. PDFium work runs on
 /// pdfrx's background worker, not the UI isolate.
 class PdfrxInspector implements PdfInspector {
-  const PdfrxInspector();
+  /// [initialize] prepares pdfrx on first use rather than at app start-up,
+  /// so loading PDFium never delays the first frame. It is idempotent.
+  const PdfrxInspector({this.initialize = pdfrxFlutterInitialize});
+
+  final Future<void> Function() initialize;
 
   @override
   Future<PdfInspection> inspect(String path) async {
+    await initialize();
     final PdfDocument document;
     try {
       // No password provider: PDFium tries the empty password (which opens

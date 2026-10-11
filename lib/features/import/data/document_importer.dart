@@ -6,6 +6,7 @@ import '../../../core/utils/app_log.dart';
 import '../../../core/utils/cancellation.dart';
 import '../../../core/utils/isolates.dart';
 import '../../../core/utils/text_cleanup.dart';
+import '../../../data/files/library_storage.dart';
 import '../../../engines/epub/epub_package.dart';
 import '../../../engines/pdf/pdf_inspector.dart';
 import '../../library/data/library_repository.dart';
@@ -15,7 +16,6 @@ import '../domain/format_detection.dart';
 import '../domain/import_outcome.dart';
 import 'epub_import_reader.dart';
 import 'format_detector.dart';
-import 'library_storage.dart';
 
 /// Imports files into the library, one at a time:
 ///

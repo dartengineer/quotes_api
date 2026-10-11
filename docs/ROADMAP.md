@@ -35,22 +35,39 @@ yet; see the risks section of [AUDIT.md](AUDIT.md).
 
 ## M2 - Import & Library management
 
-- [ ] Verify `file_picker` 13 Android behaviour (SAF, cache copies, streams)
-- [ ] Single and multiple file import via the system picker
-- [ ] Format sniffing by content (PDF header, EPUB zip `mimetype`, text
-      heuristics); unsupported formats reported, not imported
-- [ ] Streaming SHA-256 in an isolate; duplicate detection
-- [ ] Copy into app-private library directory; originals untouched
-- [ ] Metadata extraction (EPUB OPF title/author/language; PDF info dict;
-      TXT file name)
-- [ ] Cover/thumbnail generation with a bounded size, cached on disk
-- [ ] Import progress UI and per-file error reporting
-- [ ] Library search UI, filters (favourites, status), favourites toggle
-- [ ] Document details sheet; set status; remove from library (deletes the
-      app copy only, with confirmation)
-- [ ] Multi-select: favourite, status, add to collection, remove
-- [ ] Collections UI: create, rename, delete, browse
-- [ ] Home search entry point and import action
+- [x] Verified `file_picker` 13 on Android: SAF (`ACTION_OPEN_DOCUMENT`),
+      picked documents are copied into the app cache and returned as paths;
+      no storage permission is requested
+- [x] Single and multiple file import via the system picker
+- [x] Format detection by content (PDF header, EPUB zip structure, UTF-8 /
+      UTF-16 / legacy-encoding text heuristics); unsupported formats are
+      named (Word, MOBI, FB2, HTML, images, archives, ...) and not imported
+- [x] Streaming SHA-256 + copy in one pass on a killable background
+      isolate; picker temp copies are moved instead of copied twice;
+      duplicate detection by content hash
+- [x] App-private library directory; originals are never modified
+- [x] Metadata: EPUB OPF title / authors (role-aware) / language /
+      publisher / description; PDF page count; TXT title from file name
+- [x] EPUB safety: zip-bomb caps enforced during decompression, path
+      traversal ignored, DRM-encrypted and fixed-layout books rejected
+      with a clear reason
+- [~] PDF handling via PDFium (pdfrx): damaged files rejected,
+      password-protected files imported without preview; verified with
+      the host PDFium build in tests, not yet on a device
+- [~] Cover thumbnails (EPUB cover image or PDF first page), decoded at
+      reduced size and stored as bounded JPEGs; decode path verified in
+      tests, rendering quality to be checked on a device
+- [x] Import progress sheet with cancel; per-file summary with reasons
+- [x] Library search (debounced, multi-word, Unicode case-insensitive)
+      and filter chips (favourites, reading status)
+- [x] Document details page: status, favourite, collections, description,
+      file facts; remove from library (app copy only, with confirmation)
+- [x] Multi-select: favourite, status, add to / remove from collection,
+      remove from library
+- [x] Collections tab: create, rename, delete, browse a collection
+- [x] Home: import and search entry points; documents open details
+- [ ] "Open with" / share intents from other apps (planned with M3)
+- [ ] Opening a document to read (readers arrive in M3-M5)
 
 ## M3 - Reader core + TXT
 

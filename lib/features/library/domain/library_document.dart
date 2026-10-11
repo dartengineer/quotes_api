@@ -98,3 +98,15 @@ class NewDocument {
   final String? publisher;
   final String? description;
 }
+
+/// Additional metadata shown on the details screen.
+class DocumentDetails extends Equatable {
+  const DocumentDetails({this.description, this.publisher, this.language});
+
+  final String? description;
+  final String? publisher;
+  final String? language;
+
+  @override
+  List<Object?> get props => [description, publisher, language];
+}

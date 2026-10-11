@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lectern/core/utils/cancellation.dart';
-import 'package:lectern/features/import/data/library_storage.dart';
+import 'package:lectern/data/files/library_storage.dart';
 import 'package:lectern/features/library/domain/document_format.dart';
 
 void main() {
