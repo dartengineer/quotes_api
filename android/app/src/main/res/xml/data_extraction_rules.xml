@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ backup rules.
+  Imported documents, reading data and notes must not be uploaded to cloud
+  backup without the user's explicit consent, so every domain is excluded
+  from cloud backup. Device-to-device transfer (e.g. setting up a new phone)
+  is not restricted. An explicit, user-initiated backup/export is planned
+  inside the app instead.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+</data-extraction-rules>
