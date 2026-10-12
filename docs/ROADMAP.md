@@ -242,9 +242,51 @@ yet; see the risks section of [AUDIT.md](AUDIT.md).
 
 ## M7 - Hardening
 
-- [ ] On-device performance baselines (startup, library scroll, open time,
+- [x] Uncaught errors (framework and asynchronous) are logged and handled
+      instead of ending the app; release builds log only the error's type,
+      never its message, which could hold document text or notes
+- [x] Reading-data backup and restore (Settings, "Your data"): progress,
+      positions, statuses, favourites, bookmarks, highlights and notes,
+      reading history, collections, theme and reading settings, saved as
+      versioned JSON where the user chooses. Books are not included; data
+      finds its book again by the SHA-256 of the file, whatever it is
+      called. Restoring merges and never deletes: favourites and statuses
+      only move forward, a position replaces the library's only if it is
+      newer, bookmarks and highlights are added unless already there, a
+      highlight's newer note or colour is taken over, collections are
+      matched by name. One transaction, so a failure changes nothing;
+      restoring twice changes nothing the second time. A summary lists
+      what changed and which books are missing from the library
+- [x] Backups are treated as untrusted input: strict checks on the format,
+      version and structure; invalid entries skipped and counted; text
+      bounded as in the app; positions that do not fit the book's format
+      refused; 32 MB limit, enforced when reading (before parsing) and when
+      writing (a backup that could not be restored is never written)
+- [~] The file picker's temporary copy of a backup (it holds the notes) is
+      deleted right after reading; this is Android plugin behaviour that
+      cannot be exercised here
+- [x] Damaged-file corpus: valid EPUB, PDF, TXT, zip and backup samples,
+      cut short, bit-flipped and partly scrambled with a fixed seed, run
+      through import and the readers' loaders. It found and led to fixes
+      for: a damaged PDF on which pdfrx 2.6.5 throws a `RangeError`
+      (reported as a generic failure; now "damaged"; pdfrx's in-memory
+      open path also frees memory twice in that case, which the app avoids
+      by always opening files); cut-off EPUBs reported as "not supported"
+      (now "damaged")
+- [x] Text files larger than the reader can open (50 MB) are refused at
+      import with that reason, instead of being imported and failing later
+- [x] Layout at 320 dp width with text at 200%: every main screen, sheet
+      and dialog is opened in a test that fails on any overflow. The note
+      editor overflowed; all dialogs now scroll instead
+- [~] Performance baselines on the development VM (debug mode) with an
+      opt-in benchmark suite: see [PERFORMANCE.md](PERFORMANCE.md). Not
+      device numbers
+- [ ] On-device performance profiling (startup, library scroll, open time,
       memory) with DevTools / Android profiler
-- [ ] Large-file and corrupt-file test corpus
 - [ ] Integration tests on a device/emulator
-- [ ] User-initiated backup/export and restore
+- [ ] Creating and restoring a backup for a very large library runs about a
+      second of work on the UI isolate (see PERFORMANCE.md); move it to a
+      background isolate if device profiling shows it matters
+- [ ] Encrypted backups (a password) - backups are plain JSON today; the
+      Settings screen says so
 - [ ] Release signing and final application ID (owner decision)

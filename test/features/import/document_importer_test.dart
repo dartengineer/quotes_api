@@ -6,6 +6,7 @@ import 'package:lectern/core/utils/cancellation.dart';
 import 'package:lectern/data/database/app_database.dart';
 import 'package:lectern/data/files/library_storage.dart';
 import 'package:lectern/engines/pdf/pdf_inspector.dart';
+import 'package:lectern/engines/txt/text_document.dart';
 import 'package:lectern/features/import/data/document_importer.dart';
 import 'package:lectern/features/import/domain/import_outcome.dart';
 import 'package:lectern/features/library/data/library_repository.dart';
@@ -132,6 +133,14 @@ void main() {
     });
   });
 
+  test('a cut-off EPUB is reported as damaged', () async {
+    final outcome = await importer.importFile(
+      userFile('cut.epub', buildEpub().sublist(0, 400)),
+    );
+    expect((outcome as RejectedOutcome).reason, RejectionReason.damaged);
+    expect(outcome.message, 'The file appears to be damaged.');
+  });
+
   group('PDF', () {
     test('imports page count and a first-page thumbnail', () async {
       if (!pdfiumAvailable) return markTestSkipped('PDFium not available');
@@ -184,6 +193,20 @@ void main() {
       expect((outcome as RejectedOutcome).reason, RejectionReason.damaged);
       expect(filesIn('files'), isEmpty);
     });
+
+    test('rejects a PDF whose pages the PDF engine fails on', () async {
+      if (!pdfiumAvailable) return markTestSkipped('PDFium not available');
+      // Found by the damaged-file corpus: pdfrx throws a RangeError (an
+      // Error, not an Exception) while measuring this file's pages.
+      final outcome = await importer.importFile(
+        userFile(
+          'damaged.pdf',
+          File('test/fixtures/damaged_page_tree.pdf').readAsBytesSync(),
+        ),
+      );
+      expect((outcome as RejectedOutcome).reason, RejectionReason.damaged);
+      expect(filesIn('files'), isEmpty);
+    });
   });
 
   group('TXT and unsupported files', () {
@@ -208,6 +231,29 @@ void main() {
       expect(outcome.reason, RejectionReason.unsupportedFormat);
       expect(outcome.message, 'Not supported: image.');
       expect(filesIn('incoming'), isEmpty);
+    });
+
+    test('rejects text too large for the reader to open', () async {
+      // Text where the format is detected, then a sparse gap up to just
+      // past the limit.
+      final file = File('${base.path}/user/huge.txt');
+      final handle = file.openSync(mode: FileMode.write)
+        ..writeStringSync('A very long log\n' * 8192)
+        ..setPositionSync(TextDocument.maxFileBytes)
+        ..writeStringSync('\n');
+      handle.closeSync();
+
+      final outcome = await importer.importFile(
+        ImportSource(path: file.path, displayName: 'huge.txt'),
+      );
+      outcome as RejectedOutcome;
+      expect(outcome.reason, RejectionReason.textTooLarge);
+      expect(
+        outcome.message,
+        'This text file is too large to open (the limit is 50 MB).',
+      );
+      expect(filesIn('incoming'), isEmpty);
+      expect(filesIn('files'), isEmpty);
     });
 
     test('rejects empty files', () async {

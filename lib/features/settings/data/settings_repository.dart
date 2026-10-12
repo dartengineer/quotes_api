@@ -24,6 +24,19 @@ class SettingsRepository {
   static const _readerMarginKey = 'reader.margin';
   static const _readerJustifyKey = 'reader.justify';
 
+  /// Settings carried in reading-data backups: the theme and the reading
+  /// settings. Library view options stay with the device.
+  static const backupKeys = {
+    _themeKey,
+    _readerThemeKey,
+    _readerFontKey,
+    _readerFontSizeKey,
+    _readerLineHeightKey,
+    _readerParagraphSpacingKey,
+    _readerMarginKey,
+    _readerJustifyKey,
+  };
+
   final AppDatabase _db;
 
   Future<StoredPreferences> load() async {
@@ -55,6 +68,39 @@ class SettingsRepository {
           PreferencesCompanion.insert(key: key, value: stored),
       ]);
     });
+  }
+
+  /// The stored values of [backupKeys].
+  Future<Map<String, String>> backupValues() async {
+    final rows = await (_db.select(
+      _db.preferences,
+    )..where((p) => p.key.isIn(backupKeys))).get();
+    return {for (final row in rows) row.key: row.value};
+  }
+
+  /// Applies settings from a backup and returns whether any changed.
+  ///
+  /// Only [backupKeys] are used, and values are read the same way as at
+  /// start-up and saved again in canonical form, so an invalid value falls
+  /// back to the default instead of being stored.
+  Future<bool> restoreValues(Map<String, String> values) async {
+    final restored = {
+      for (final MapEntry(:key, :value) in values.entries)
+        if (backupKeys.contains(key)) key: value,
+    };
+    if (restored.isEmpty) return false;
+    final before = await backupValues();
+    final current = await load();
+    final merged = StoredPreferences({...current._values, ...restored});
+    if (restored.containsKey(_themeKey)) {
+      await setThemePreference(merged.appSettings.themePreference);
+    }
+    if (restored.keys.any((key) => key != _themeKey)) {
+      await setReaderPreferences(merged.readerPreferences);
+    }
+    final after = await backupValues();
+    return after.length != before.length ||
+        after.entries.any((e) => before[e.key] != e.value);
   }
 
   Future<void> _put(String key, String value) async {

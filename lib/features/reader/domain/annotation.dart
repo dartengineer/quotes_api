@@ -20,15 +20,21 @@ sealed class AnnotationRange extends Equatable {
   static AnnotationRange? decode(String? source) {
     if (source == null || source.isEmpty) return null;
     try {
-      final json = jsonDecode(source);
-      if (json is! Map<String, Object?>) return null;
+      return fromJson(jsonDecode(source));
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Like [decode], for an already parsed JSON value.
+  static AnnotationRange? fromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    try {
       return switch (json['k']) {
         TextRangeAnchor.kind => TextRangeAnchor._fromJson(json),
         PdfAreaRange.kind => PdfAreaRange._fromJson(json),
         _ => null,
       };
-    } on FormatException {
-      return null;
     } on TypeError {
       return null;
     }

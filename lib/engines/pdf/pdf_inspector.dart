@@ -54,7 +54,10 @@ class PdfrxInspector implements PdfInspector {
       document = await PdfDocument.openFile(path);
     } on PdfPasswordException {
       return const PdfInspection(isPasswordProtected: true);
-    } on Exception catch (error) {
+    } catch (error) {
+      // Not only exceptions: on some damaged files pdfrx 2.6.5 fails with
+      // an error (a RangeError for a page it could not load). Either way
+      // the file cannot be read.
       throw PdfUnreadableException(error.runtimeType.toString());
     }
 

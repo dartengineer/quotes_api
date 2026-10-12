@@ -142,7 +142,10 @@ void main() {
 
     test('a truncated EPUB is reported as damaged', () {
       final bytes = buildEpub();
-      expectUnsupported(bytes.sublist(0, 200), 'Damaged EPUB file');
+      expect(
+        detect(bytes.sublist(0, 200)),
+        const DamagedFile(DocumentFormat.epub),
+      );
     });
   });
 

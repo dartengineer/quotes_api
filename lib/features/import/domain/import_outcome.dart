@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../engines/txt/text_document.dart';
+
 /// A file selected for import.
 class ImportSource extends Equatable {
   const ImportSource({required this.path, required this.displayName});
@@ -25,7 +27,10 @@ enum RejectionReason {
   unreadable,
 
   /// Larger than the app accepts from other apps.
-  tooLarge;
+  tooLarge,
+
+  /// A text file larger than the text reader can open.
+  textTooLarge;
 
   String message({String? formatDescription}) => switch (this) {
     RejectionReason.unsupportedFormat =>
@@ -41,6 +46,9 @@ enum RejectionReason {
     RejectionReason.unreadable =>
       'The file couldn’t be read. The app it came from may not allow it.',
     RejectionReason.tooLarge => 'The file is too large (the limit is 1 GB).',
+    RejectionReason.textTooLarge =>
+      'This text file is too large to open (the limit is '
+          '${TextDocument.maxFileBytes ~/ (1024 * 1024)} MB).',
   };
 }
 

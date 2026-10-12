@@ -338,6 +338,7 @@ class _GoToPageDialogState extends State<_GoToPageDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
       title: const Text('Go to page'),
       content: TextField(
         controller: _field,

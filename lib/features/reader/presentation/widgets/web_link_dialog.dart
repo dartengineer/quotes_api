@@ -9,6 +9,7 @@ Future<void> showWebLinkDialog(BuildContext context, Uri url) {
   return showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
+      scrollable: true,
       title: const Text('Link to a website'),
       content: SelectableText(url.toString()),
       actions: [

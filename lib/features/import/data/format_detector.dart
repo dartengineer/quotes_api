@@ -120,9 +120,9 @@ abstract final class FormatDetector {
     try {
       zip = SafeZip.open(path);
     } catch (_) {
-      return UnsupportedFormat(
-        epubSignature ? 'Damaged EPUB file' : 'Damaged ZIP archive',
-      );
+      return epubSignature
+          ? const DamagedFile(DocumentFormat.epub)
+          : const UnsupportedFormat('Damaged ZIP archive');
     }
     try {
       String? mimetype;

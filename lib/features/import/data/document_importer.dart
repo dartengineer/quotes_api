@@ -9,6 +9,7 @@ import '../../../core/utils/text_cleanup.dart';
 import '../../../data/files/library_storage.dart';
 import '../../../engines/epub/epub_package.dart';
 import '../../../engines/pdf/pdf_inspector.dart';
+import '../../../engines/txt/text_document.dart';
 import '../../library/data/library_repository.dart';
 import '../../library/domain/document_format.dart';
 import '../../library/domain/library_document.dart';
@@ -90,6 +91,7 @@ class DocumentImporter {
           formatDescription: description,
         ),
         EmptyFile() => throw const _Rejection(RejectionReason.emptyFile),
+        DamagedFile() => throw const _Rejection(RejectionReason.damaged),
       };
 
       final staged = await _storage.stage(path, cancellation: cancellation);
@@ -104,6 +106,12 @@ class DocumentImporter {
           );
         }
 
+        // The text reader holds the whole text in memory, so it has a
+        // limit; there is no point importing what it could never open.
+        if (format == DocumentFormat.txt &&
+            staged.size > TextDocument.maxFileBytes) {
+          throw const _Rejection(RejectionReason.textTooLarge);
+        }
         final metadata = await _extractMetadata(format, staged.path, name);
         cancellation?.throwIfCancelled();
 

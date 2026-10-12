@@ -44,3 +44,21 @@ final class UnsupportedFormat extends FormatDetection {
 final class EmptyFile extends FormatDetection {
   const EmptyFile();
 }
+
+/// The file is recognisably one of the supported formats but too damaged to
+/// open (e.g. a cut-off EPUB whose archive directory is missing).
+final class DamagedFile extends FormatDetection {
+  const DamagedFile(this.format);
+
+  final DocumentFormat format;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DamagedFile && other.format == format;
+
+  @override
+  int get hashCode => format.hashCode;
+
+  @override
+  String toString() => 'DamagedFile(${format.name})';
+}

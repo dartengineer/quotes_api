@@ -1,7 +1,9 @@
+import '../core/files/file_opener.dart';
 import '../core/files/file_saver.dart';
 import '../data/database/app_database.dart';
 import '../data/files/library_storage.dart';
 import '../engines/pdf/pdf_inspector.dart';
+import '../features/backup/data/reading_data_backup.dart';
 import '../features/collections/data/collection_repository.dart';
 import '../features/import/data/document_importer.dart';
 import '../features/import/data/document_picker.dart';
@@ -20,6 +22,7 @@ class AppDependencies {
     required this.storage,
     this.picker = const SystemDocumentPicker(),
     this.fileSaver = const SystemFileSaver(),
+    this.fileOpener = const SystemFileOpener(),
     IncomingDocuments? incoming,
     this._pdfInspector = const PdfrxInspector(),
   }) : incoming =
@@ -36,6 +39,7 @@ class AppDependencies {
   final LibraryStorage storage;
   final DocumentPicker picker;
   final FileSaver fileSaver;
+  final FileOpener fileOpener;
   final IncomingDocuments incoming;
   final LibraryRepository library;
   final CollectionRepository collections;
@@ -50,6 +54,8 @@ class AppDependencies {
     storage: storage,
     pdfInspector: _pdfInspector,
   );
+
+  late final ReadingDataBackup backup = ReadingDataBackup(database, settings);
 
   late final LibraryManager manager = LibraryManager(
     library: library,

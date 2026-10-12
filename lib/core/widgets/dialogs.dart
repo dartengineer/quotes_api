@@ -13,6 +13,9 @@ Future<bool> showConfirmDialog(
     builder: (context) {
       final scheme = Theme.of(context).colorScheme;
       return AlertDialog(
+        // Long text or the keyboard scrolls the dialog instead of
+        // overflowing it (large text sizes, small screens).
+        scrollable: true,
         title: Text(title),
         content: Text(message),
         actions: [
@@ -112,6 +115,7 @@ class _NameDialogState extends State<_NameDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
       title: Text(widget.title),
       content: TextField(
         controller: _controller,

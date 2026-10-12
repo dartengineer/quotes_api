@@ -12,6 +12,17 @@ class SettingsCubit extends Cubit<AppSettings> {
 
   final SettingsRepository _repository;
 
+  /// Reads the settings again, after they were changed elsewhere (restored
+  /// from a backup).
+  Future<void> reload() async {
+    try {
+      final stored = await _repository.load();
+      if (!isClosed) emit(stored.appSettings);
+    } catch (error, stackTrace) {
+      AppLog.error('Reloading settings failed', error, stackTrace);
+    }
+  }
+
   Future<void> setThemePreference(ThemePreference value) async {
     if (value == state.themePreference) return;
     emit(state.copyWith(themePreference: value));

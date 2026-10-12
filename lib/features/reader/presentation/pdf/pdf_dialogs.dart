@@ -41,6 +41,7 @@ class _PasswordDialogState extends State<_PasswordDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
       title: const Text('Password required'),
       content: Column(
         mainAxisSize: MainAxisSize.min,

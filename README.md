@@ -3,17 +3,20 @@
 An offline-first ebook and document reader for Android, built with Flutter.
 
 > Status: import, library management, readers for TXT (M3), PDF (M4) and
-> EPUB (M5), and highlights with notes (M6) are in place, including "Open
-> with" and sharing from other apps. Hardening on devices comes next - see
-> [docs/ROADMAP.md](docs/ROADMAP.md).
+> EPUB (M5), highlights with notes (M6), and reading-data backup and restore
+> (M7) are in place, including "Open with" and sharing from other apps.
+> Profiling and testing on devices comes next - see
+> [docs/ROADMAP.md](docs/ROADMAP.md) and
+> [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Principles
 
 - **Offline first.** Everything works without a network connection. The app
   makes no network calls.
 - **Private.** Documents, reading progress, highlights and notes stay on the
-  device; they leave it only when you export them to a place you choose.
-  App data is excluded from Android cloud backup. No storage permission is
+  device; they leave it only when you export them or save a backup to a
+  place you choose (backups are plain JSON, so they hold your notes as
+  readable text). App data is excluded from Android cloud backup. No storage permission is
   requested: you pick files with the system picker (or send them from another
   app with "Open with" / share), and the app keeps its own copy; your
   original files are never modified.
@@ -34,7 +37,7 @@ lib/
   core/       theme tokens, shared widgets, utilities (zip, images, isolates)
   data/       database schema and migrations; private library storage
   engines/    format engines (EPUB, PDF inspection, TXT, shared text blocks)
-  features/   home, library, collections, import, reader, settings
+  features/   home, library, collections, import, reader, backup, settings
 
 android/app/src/main/kotlin/   receives documents from other apps
 ```

@@ -5,12 +5,14 @@ import 'package:material_ui/material_ui.dart';
 import 'app/app.dart';
 import 'app/dependencies.dart';
 import 'core/utils/app_log.dart';
+import 'core/utils/error_handling.dart';
 import 'data/database/app_database.dart';
 import 'data/files/library_storage.dart';
 import 'features/settings/data/settings_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  installErrorHandlers();
   await _bootstrap();
 }
 

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:lectern/app/dependencies.dart';
+import 'package:lectern/core/files/file_opener.dart';
 import 'package:lectern/core/files/file_saver.dart';
 import 'package:lectern/data/files/library_storage.dart';
 import 'package:lectern/engines/pdf/pdf_inspector.dart';
@@ -40,6 +41,7 @@ class FakeDocumentPicker implements DocumentPicker {
 class FakeFileSaver implements FileSaver {
   final saved = <(String, Uint8List, String)>[];
   bool cancel = false;
+  Object? error;
 
   @override
   Future<bool> save({
@@ -47,9 +49,28 @@ class FakeFileSaver implements FileSaver {
     required Uint8List bytes,
     required String mimeType,
   }) async {
+    if (error case final error?) throw error;
     if (cancel) return false;
     saved.add((fileName, bytes, mimeType));
     return true;
+  }
+}
+
+/// A file opener that returns a preset file instead of showing system UI.
+class FakeFileOpener implements FileOpener {
+  OpenedFile? next;
+  Object? error;
+  int? lastMaxBytes;
+
+  @override
+  Future<OpenedFile?> open({required int maxBytes}) async {
+    lastMaxBytes = maxBytes;
+    if (error case final error?) throw error;
+    final file = next;
+    if (file != null && file.bytes.length > maxBytes) {
+      throw FileTooLargeException(maxBytes);
+    }
+    return file;
   }
 }
 
@@ -58,6 +79,7 @@ class FakeFileSaver implements FileSaver {
 Future<AppDependencies> createTestDependencies({
   DocumentPicker? picker,
   FileSaver? fileSaver,
+  FileOpener? fileOpener,
 }) async {
   final base = await Directory.systemTemp.createTemp('lectern_deps');
   final storage = LibraryStorage(
@@ -70,6 +92,7 @@ Future<AppDependencies> createTestDependencies({
     storage: storage,
     picker: picker ?? FakeDocumentPicker(),
     fileSaver: fileSaver ?? FakeFileSaver(),
+    fileOpener: fileOpener ?? FakeFileOpener(),
     pdfInspector: PdfrxInspector(initialize: () async {}),
   );
 }

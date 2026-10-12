@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../core/files/file_opener.dart';
 import '../core/files/file_saver.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/state_views.dart';
@@ -86,6 +87,8 @@ class _LecternAppState extends State<LecternApp> {
         RepositoryProvider.value(value: deps.bookmarks),
         RepositoryProvider.value(value: deps.annotations),
         RepositoryProvider<FileSaver>.value(value: deps.fileSaver),
+        RepositoryProvider<FileOpener>.value(value: deps.fileOpener),
+        RepositoryProvider.value(value: deps.backup),
         RepositoryProvider.value(value: _searchRequests),
       ],
       child: MultiBlocProvider(

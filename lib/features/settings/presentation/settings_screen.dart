@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../app/app_info.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../backup/presentation/backup_section.dart';
 import '../domain/app_settings.dart';
 import 'settings_cubit.dart';
 
@@ -19,13 +20,16 @@ class SettingsScreen extends StatelessWidget {
         children: [
           const SectionHeader(title: 'Appearance'),
           const _ThemeOptions(),
+          const SectionHeader(title: 'Your data'),
+          const BackupSection(),
           const SectionHeader(title: 'Privacy'),
           const ListTile(
             leading: Icon(Icons.lock_outline),
             title: Text('Stored on this device'),
             subtitle: Text(
               'Your library, reading progress and notes are kept only on '
-              'this device. Nothing is uploaded.',
+              'this device. Nothing is uploaded. Backups are saved only '
+              'where you choose, and hold your notes as readable text.',
             ),
           ),
           const SectionHeader(title: 'About'),

@@ -140,6 +140,8 @@ class _NoteDialogState extends State<_NoteDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      // Scrolls rather than overflows with large text or the keyboard up.
+      scrollable: true,
       title: Text(widget.initial == null ? 'Add note' : 'Edit note'),
       content: SizedBox(
         width: 400,
