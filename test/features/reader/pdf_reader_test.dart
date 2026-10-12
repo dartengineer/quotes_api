@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lectern/app/dependencies.dart';
 import 'package:lectern/app/routes.dart';
 import 'package:lectern/core/theme/reader_palette.dart';
+import 'package:lectern/features/reader/domain/annotation.dart';
 import 'package:lectern/features/reader/domain/locator.dart';
 import 'package:lectern/features/reader/presentation/reader_cubit.dart';
 import 'package:lectern/features/reader/presentation/reader_screen.dart';
@@ -506,6 +507,109 @@ void main() {
         ),
         'Page',
       );
+      await unmountApp(tester);
+    });
+  });
+
+  group('highlights', () {
+    testWidgets('a selected word can be highlighted, shown and opened', (
+      tester,
+    ) async {
+      if (!pdfium) return markTestSkipped('PDFium not available');
+      final id = await addPdfFile(deps, bytes: textPdf(pagedText(3)));
+      await open(tester, id);
+      final controller = viewer(tester);
+      final page = controller.layout.pageLayouts.first;
+      // "Page" at the top left of the first page.
+      final word = controller.documentToGlobal(
+        Offset(page.left + 30, page.top + 37),
+      )!;
+      await tester.longPressAt(word);
+      await settle(tester);
+      expect(find.text('Highlight…'), findsOneWidget);
+      expect(find.text('Copy'), findsOneWidget);
+
+      await tester.tap(find.text('Highlight…'));
+      await tester.pump();
+      await pumpUntil(
+        tester,
+        () => find.byTooltip('Highlight green').evaluate().isNotEmpty,
+      );
+      await settle(tester);
+      await tester.tap(find.byTooltip('Highlight green'));
+      await settle(tester);
+
+      final saved = reader(tester).state.annotations.single;
+      expect(saved.text, 'Page');
+      final range = saved.range as PdfAreaRange;
+      expect(range.areas.single.pageIndex, 0);
+      final rect = range.areas.single.rects.single;
+      // About 20-50 pt across and 31-43 pt down a 300 x 400 pt page.
+      expect(rect.left, closeTo(20 / 300, 0.02));
+      expect(1 - rect.top, closeTo(31 / 400, 0.02));
+      expect(controller.textSelectionDelegate.hasSelectedText, isFalse);
+
+      // Drawn over the page.
+      final green = Color(HighlightColor.green.argb)
+          .withValues(alpha: 0.5)
+          .toARGB32();
+      final pages = find.descendant(
+        of: find.byType(PdfViewer),
+        matching: find.byType(CustomPaint),
+      );
+      bool drawn() {
+        for (final element in pages.evaluate()) {
+          final pattern = paints
+            ..something(
+              (method, arguments) =>
+                  method == #drawRect &&
+                  (arguments[1] as Paint).color.toARGB32() == green,
+            );
+          if ((pattern as Matcher).matches(
+            element.renderObject,
+            <dynamic, dynamic>{},
+          )) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      expect(drawn(), isTrue);
+
+      // Tapping it opens it.
+      await tester.tapAt(word);
+      await tester.pump(const Duration(milliseconds: 400));
+      await settle(tester);
+      expect(find.text('Page 1'), findsOneWidget);
+      expect(find.text('Add note'), findsOneWidget);
+      expect(reader(tester).state.chromeVisible, isFalse);
+      await unmountApp(tester);
+    });
+
+    testWidgets('PDFs that forbid copying offer no highlighting', (
+      tester,
+    ) async {
+      if (!pdfium) return markTestSkipped('PDFium not available');
+      // The same text as the other tests, with copying not permitted.
+      final id = await addPdfFile(
+        deps,
+        bytes: File('test/fixtures/no_copy_text.pdf').readAsBytesSync(),
+      );
+      await open(tester, id);
+      final controller = viewer(tester);
+      // Copying (bit 5) is not permitted; printing (bit 3) is.
+      final permissions = controller.document.permissions!.permissions;
+      expect(permissions & 0x10, 0);
+      expect(permissions & 0x04, isNot(0));
+      final page = controller.layout.pageLayouts.first;
+      await tester.longPressAt(
+        controller.documentToGlobal(Offset(page.left + 30, page.top + 37))!,
+      );
+      await settle(tester);
+      expect(controller.textSelectionDelegate.hasSelectedText, isTrue);
+      expect(find.text('Highlight…'), findsNothing);
+      expect(find.text('Copy'), findsNothing);
       await unmountApp(tester);
     });
   });

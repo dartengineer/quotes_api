@@ -15,6 +15,7 @@ import '../features/library/presentation/document_details_cubit.dart';
 import '../features/library/presentation/document_details_screen.dart';
 import '../features/library/presentation/library_cubit.dart';
 import '../features/library/presentation/library_screen.dart';
+import '../features/reader/data/annotation_repository.dart';
 import '../features/reader/data/bookmark_repository.dart';
 import '../features/reader/data/reading_progress_repository.dart';
 import '../features/reader/presentation/reader_cubit.dart';
@@ -107,6 +108,7 @@ GoRouter buildRouter({String initialLocation = Routes.home}) {
               library: context.read<LibraryRepository>(),
               progress: context.read<ReadingProgressRepository>(),
               bookmarks: context.read<BookmarkRepository>(),
+              annotations: context.read<AnnotationRepository>(),
               settings: context.read<SettingsRepository>(),
               storage: context.read<LibraryStorage>(),
             ),

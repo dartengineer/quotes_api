@@ -66,6 +66,10 @@ abstract interface class FlowDocument {
   /// Short text starting at [offset], for bookmark excerpts.
   String? excerptAt(int offset);
 
+  /// The readable text between two global offsets (no placeholders for
+  /// images), for highlights.
+  String textBetween(int start, int end);
+
   Future<List<SearchHit>> search(String query);
 
   List<TocEntry> get contents;

@@ -10,6 +10,7 @@ import '../../../../core/utils/app_log.dart';
 import '../../../../core/utils/text_search.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../../engines/pdf/pdf_text_geometry.dart';
+import '../../domain/annotation.dart';
 import '../../domain/locator.dart';
 import '../../domain/search_hit.dart';
 import '../../domain/toc_entry.dart';
@@ -83,6 +84,12 @@ class _PdfReaderViewState extends State<PdfReaderView>
     if (!identical(oldWidget.config.controller, _config.controller)) {
       oldWidget.config.controller.detach(this);
       _config.controller.attach(this);
+    }
+    // Pages are painted by the viewer: repaint for new or changed
+    // highlights.
+    if (!identical(oldWidget.config.annotations, _config.annotations) &&
+        _viewer.isReady) {
+      _viewer.invalidate();
     }
   }
 
@@ -382,7 +389,38 @@ class _PdfReaderViewState extends State<PdfReaderView>
     });
   }
 
-  void _paintHighlight(ui.Canvas canvas, Rect pageRect, PdfPage page) {
+  /// Paints saved highlights and the temporary search highlight on [page].
+  void _paintHighlights(ui.Canvas canvas, Rect pageRect, PdfPage page) {
+    final pageIndex = page.pageNumber - 1;
+    final (width, height) = _unrotatedSize(page);
+    for (final annotation in _config.annotations) {
+      final range = annotation.range;
+      if (range is! PdfAreaRange) continue;
+      final paint = Paint()
+        ..color = Color(annotation.color.argb)
+            .withValues(alpha: _config.palette.isDark ? 0.4 : 0.5);
+      for (final area in range.areas) {
+        if (area.pageIndex != pageIndex) continue;
+        for (final r in area.rects) {
+          final rect = PdfRect(
+            r.left * width,
+            r.top * height,
+            r.right * width,
+            r.bottom * height,
+          ).toRectInDocument(page: page, pageRect: pageRect);
+          canvas.drawRect(rect, paint);
+          if (annotation.hasNote && identical(r, area.rects.first)) {
+            // A small marker shows that a note is attached.
+            canvas.drawCircle(
+              rect.topRight,
+              pageRect.width * 0.008 + 2,
+              Paint()..color = _config.palette.secondaryText,
+            );
+          }
+        }
+      }
+    }
+
     final highlight = _highlight;
     if (highlight == null || highlight.pageNumber != page.pageNumber) return;
     final paint = Paint()..color = _config.palette.highlight;
@@ -392,6 +430,135 @@ class _PdfReaderViewState extends State<PdfReaderView>
         paint,
       );
     }
+  }
+
+  /// The page's size before rotation: the space text and highlight
+  /// coordinates are in.
+  static (double, double) _unrotatedSize(PdfPage page) =>
+      switch (page.rotation) {
+        PdfPageRotation.clockwise90 ||
+        PdfPageRotation.clockwise270 => (page.height, page.width),
+        _ => (page.width, page.height),
+      };
+
+  // --- Annotating -------------------------------------------------------------
+
+  /// Whether the document permits copying its text: bit 5 (value 16) of the
+  /// permissions in PDF 32000-1, table 22. (pdfrx 2.6.5's `allowsCopying`
+  /// tests bit 3, which is printing, so it is not relied on.)
+  bool get _copyAllowed {
+    if (!_viewer.isReady) return false;
+    final permissions = _viewer.document.permissions;
+    return permissions == null || (permissions.permissions & 0x10) != 0;
+  }
+
+  /// Adds "Highlight…" to the selection menu when the document allows its
+  /// text to be copied (highlighting takes the same access); removes "Copy"
+  /// when it does not.
+  void _customizeMenu(
+    PdfViewerContextMenuBuilderParams params,
+    List<ContextMenuButtonItem> items,
+  ) {
+    if (!_copyAllowed) {
+      items.removeWhere((item) => item.type == ContextMenuButtonType.copy);
+      return;
+    }
+    final delegate = params.textSelectionDelegate;
+    // pdfrx also gates access to the selected text on its own check.
+    if (_config.onSelection == null ||
+        !delegate.hasSelectedText ||
+        !delegate.isCopyAllowed) {
+      return;
+    }
+    items.insert(
+      0,
+      ContextMenuButtonItem(
+        label: 'Highlight…',
+        onPressed: () {
+          params.dismissContextMenu();
+          unawaited(_annotateSelection(delegate));
+        },
+      ),
+    );
+  }
+
+  Future<void> _annotateSelection(PdfTextSelectionDelegate delegate) async {
+    final onSelection = _config.onSelection;
+    if (onSelection == null || !_viewer.isReady) return;
+    final ranges = await delegate.getSelectedTextRanges();
+    final text = await delegate.getSelectedText();
+    if (!mounted || !_viewer.isReady || _pageCount == 0) return;
+    final areas = <PdfPageArea>[];
+    for (final range in ranges) {
+      final index = range.pageNumber - 1;
+      if (index < 0 || index >= _pageCount) continue;
+      final (width, height) = _unrotatedSize(_viewer.pages[index]);
+      if (width <= 0 || height <= 0) continue;
+      final boxes = lineBoxes(range.pageText.charRects, range.start, range.end);
+      if (boxes.isEmpty) continue;
+      areas.add(
+        PdfPageArea(
+          pageIndex: index,
+          rects: [
+            for (final b in boxes)
+              NormalizedRect(
+                b.left / width,
+                b.top / height,
+                b.right / width,
+                b.bottom / height,
+              ),
+          ],
+        ),
+      );
+    }
+    if (areas.isEmpty) return;
+    final range = PdfAreaRange(areas);
+    final start = range.start;
+    await onSelection(
+      AnnotationDraft(
+        range: range,
+        progress: ((start.pageIndex + start.pageOffset) / _pageCount).clamp(
+          0.0,
+          1.0,
+        ),
+        text: text.trim(),
+      ),
+    );
+    if (mounted) await delegate.clearTextSelection();
+  }
+
+  /// The saved highlight under a tap at [localPosition], if any.
+  Annotation? _annotationAt(
+    PdfViewerController controller,
+    Offset localPosition,
+  ) {
+    if (_config.annotations.isEmpty) return null;
+    final hit = controller.getPdfPageHitTestResult(
+      localPosition,
+      useDocumentLayoutCoordinates: false,
+    );
+    if (hit == null) return null;
+    final (width, height) = _unrotatedSize(hit.page);
+    if (width <= 0 || height <= 0) return null;
+    final x = hit.offset.x / width;
+    final y = hit.offset.y / height;
+    const slack = 0.005;
+    for (final annotation in _config.annotations.reversed) {
+      final range = annotation.range;
+      if (range is! PdfAreaRange) continue;
+      for (final area in range.areas) {
+        if (area.pageIndex != hit.page.pageNumber - 1) continue;
+        for (final r in area.rects) {
+          if (x >= r.left - slack &&
+              x <= r.right + slack &&
+              y <= r.top + slack &&
+              y >= r.bottom - slack) {
+            return annotation;
+          }
+        }
+      }
+    }
+    return null;
   }
 
   // --- Thumbnails -------------------------------------------------------------
@@ -418,6 +585,10 @@ class _PdfReaderViewState extends State<PdfReaderView>
       case PdfViewerGeneralTapType.tap:
         // Let the viewer clear a text selection first.
         if (controller.textSelectionDelegate.hasSelectedText) return false;
+        if (_annotationAt(controller, details.localPosition) case final a?) {
+          _config.onAnnotationTap?.call(a);
+          return true;
+        }
         final fraction = details.localPosition.dy / controller.viewSize.height;
         if (fraction < 0.25) {
           pageBack();
@@ -477,7 +648,8 @@ class _PdfReaderViewState extends State<PdfReaderView>
         maxImageBytesCachedOnMemory: 64 * 1024 * 1024,
         onViewerReady: _onViewerReady,
         onGeneralTap: _onTap,
-        pagePaintCallbacks: [_paintHighlight],
+        pagePaintCallbacks: [_paintHighlights],
+        customizeContextMenuItems: _customizeMenu,
         linkHandlerParams: PdfLinkHandlerParams(onLinkTap: _onLinkTap),
         loadingBannerBuilder: (context, _, _) => const LoadingView(),
         errorBannerBuilder: (context, error, _, _) =>

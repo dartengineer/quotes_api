@@ -155,6 +155,12 @@ class _TextFlow implements FlowDocument {
   String? excerptAt(int offset) => _doc.excerptAt(offset);
 
   @override
+  String textBetween(int start, int end) => _doc.text.substring(
+    start.clamp(0, _doc.length),
+    end.clamp(start.clamp(0, _doc.length), _doc.length),
+  );
+
+  @override
   Future<List<SearchHit>> search(String query) async {
     final matches = await _searchInBackground(_doc.text, query);
     return [

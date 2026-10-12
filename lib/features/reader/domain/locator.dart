@@ -19,16 +19,22 @@ sealed class Locator extends Equatable {
   static Locator? decode(String? source) {
     if (source == null || source.isEmpty) return null;
     try {
-      final json = jsonDecode(source);
-      if (json is! Map<String, Object?>) return null;
+      return fromJson(jsonDecode(source));
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Like [decode], for an already parsed JSON value.
+  static Locator? fromJson(Object? json) {
+    if (json is! Map<String, Object?>) return null;
+    try {
       return switch (json['t']) {
         TextLocator.type => TextLocator._fromJson(json),
         PdfLocator.type => PdfLocator._fromJson(json),
         EpubLocator.type => EpubLocator._fromJson(json),
         _ => null,
       };
-    } on FormatException {
-      return null;
     } on TypeError {
       return null;
     }

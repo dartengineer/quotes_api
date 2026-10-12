@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:lectern/app/dependencies.dart';
+import 'package:lectern/core/files/file_saver.dart';
 import 'package:lectern/data/files/library_storage.dart';
 import 'package:lectern/engines/pdf/pdf_inspector.dart';
 import 'package:lectern/features/import/data/document_picker.dart';
@@ -34,9 +36,29 @@ class FakeDocumentPicker implements DocumentPicker {
   Future<void> clearTemporaryFiles() async => clearCalls++;
 }
 
+/// A file saver that records what would have been saved.
+class FakeFileSaver implements FileSaver {
+  final saved = <(String, Uint8List, String)>[];
+  bool cancel = false;
+
+  @override
+  Future<bool> save({
+    required String fileName,
+    required Uint8List bytes,
+    required String mimeType,
+  }) async {
+    if (cancel) return false;
+    saved.add((fileName, bytes, mimeType));
+    return true;
+  }
+}
+
 /// App dependencies backed by an in-memory database and a temporary
 /// library directory. Call [disposeTestDependencies] when done.
-Future<AppDependencies> createTestDependencies({DocumentPicker? picker}) async {
+Future<AppDependencies> createTestDependencies({
+  DocumentPicker? picker,
+  FileSaver? fileSaver,
+}) async {
   final base = await Directory.systemTemp.createTemp('lectern_deps');
   final storage = LibraryStorage(
     root: Directory('${base.path}/library'),
@@ -47,6 +69,7 @@ Future<AppDependencies> createTestDependencies({DocumentPicker? picker}) async {
     database: createTestDatabase(),
     storage: storage,
     picker: picker ?? FakeDocumentPicker(),
+    fileSaver: fileSaver ?? FakeFileSaver(),
     pdfInspector: PdfrxInspector(initialize: () async {}),
   );
 }

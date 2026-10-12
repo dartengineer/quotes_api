@@ -25,6 +25,7 @@ void main() {
       library: deps.library,
       progress: deps.readingProgress,
       bookmarks: deps.bookmarks,
+      annotations: deps.annotations,
       settings: deps.settings,
       storage: deps.storage,
     );

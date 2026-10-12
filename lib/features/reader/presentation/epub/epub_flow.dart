@@ -121,6 +121,24 @@ class EpubFlow implements FlowDocument {
   }
 
   @override
+  String textBetween(int start, int end) {
+    final parts = <String>[];
+    var from = start.clamp(0, _length);
+    final to = end.clamp(from, _length);
+    while (from < to) {
+      final c = _chapterAt(from);
+      final chapterStart = _chapterStarts[c];
+      final text = _book.chapters[c].content.text;
+      final local = (from - chapterStart).clamp(0, text.length);
+      final localEnd = (to - chapterStart).clamp(local, text.length);
+      parts.add(text.substring(local, localEnd));
+      // Continue in the next chapter, after the separator.
+      from = chapterStart + text.length + 1;
+    }
+    return parts.join('\n').replaceAll(objectReplacement, '').trim();
+  }
+
+  @override
   Future<List<SearchHit>> search(String query) async {
     final texts = [for (final c in _book.chapters) c.content.text];
     final found = await _searchInBackground(texts, query);

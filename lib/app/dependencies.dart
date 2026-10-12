@@ -1,3 +1,4 @@
+import '../core/files/file_saver.dart';
 import '../data/database/app_database.dart';
 import '../data/files/library_storage.dart';
 import '../engines/pdf/pdf_inspector.dart';
@@ -7,6 +8,7 @@ import '../features/import/data/document_picker.dart';
 import '../features/import/data/incoming_documents.dart';
 import '../features/library/data/library_manager.dart';
 import '../features/library/data/library_repository.dart';
+import '../features/reader/data/annotation_repository.dart';
 import '../features/reader/data/bookmark_repository.dart';
 import '../features/reader/data/reading_progress_repository.dart';
 import '../features/settings/data/settings_repository.dart';
@@ -17,6 +19,7 @@ class AppDependencies {
     required this.database,
     required this.storage,
     this.picker = const SystemDocumentPicker(),
+    this.fileSaver = const SystemFileSaver(),
     IncomingDocuments? incoming,
     this._pdfInspector = const PdfrxInspector(),
   }) : incoming =
@@ -26,17 +29,20 @@ class AppDependencies {
        collections = CollectionRepository(database),
        settings = SettingsRepository(database),
        readingProgress = ReadingProgressRepository(database),
-       bookmarks = BookmarkRepository(database);
+       bookmarks = BookmarkRepository(database),
+       annotations = AnnotationRepository(database);
 
   final AppDatabase database;
   final LibraryStorage storage;
   final DocumentPicker picker;
+  final FileSaver fileSaver;
   final IncomingDocuments incoming;
   final LibraryRepository library;
   final CollectionRepository collections;
   final SettingsRepository settings;
   final ReadingProgressRepository readingProgress;
   final BookmarkRepository bookmarks;
+  final AnnotationRepository annotations;
   final PdfInspector _pdfInspector;
 
   late final DocumentImporter importer = DocumentImporter(

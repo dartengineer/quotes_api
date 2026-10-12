@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/reader_palette.dart';
 import '../../library/domain/document_format.dart';
+import '../domain/annotation.dart';
 import '../domain/locator.dart';
 import '../domain/reader_preferences.dart';
 import 'epub/epub_reader_view.dart';
@@ -19,6 +20,9 @@ class ReaderViewConfig {
     required this.controller,
     required this.onPosition,
     required this.onTapCenter,
+    this.annotations = const [],
+    this.onSelection,
+    this.onAnnotationTap,
   });
 
   final String filePath;
@@ -30,6 +34,16 @@ class ReaderViewConfig {
 
   /// A tap in the middle of the page (toggles the toolbars).
   final VoidCallback onTapCenter;
+
+  /// Highlights and notes to show.
+  final List<Annotation> annotations;
+
+  /// The reader selected text; completes when the user has chosen what to
+  /// do with it, after which the view clears the selection.
+  final Future<void> Function(AnnotationDraft draft)? onSelection;
+
+  /// The reader tapped a highlight.
+  final ValueChanged<Annotation>? onAnnotationTap;
 }
 
 /// Maps document formats to their reader views. A format is only offered

@@ -15,6 +15,7 @@ import '../domain/locator.dart';
 import 'reader_cubit.dart';
 import 'reader_engines.dart';
 import 'reader_view_controller.dart';
+import 'widgets/annotation_sheets.dart';
 import 'widgets/bookmarks_sheet.dart';
 import 'widgets/navigation_sheets.dart';
 import 'widgets/reader_settings_sheet.dart';
@@ -70,7 +71,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
       buildWhen: (a, b) =>
           a.status != b.status ||
           a.document != b.document ||
-          a.preferences != b.preferences,
+          a.preferences != b.preferences ||
+          a.annotations != b.annotations,
       builder: (context, state) {
         return switch (state.status) {
           ReaderStatus.loading => const Scaffold(body: LoadingView()),
@@ -147,6 +149,10 @@ class _ReaderLayout extends StatelessWidget {
         controller: controller,
         onPosition: cubit.onPosition,
         onTapCenter: cubit.toggleChrome,
+        annotations: state.annotations,
+        onSelection: (draft) => handleSelection(context, draft),
+        onAnnotationTap: (annotation) =>
+            unawaited(showAnnotationSheet(context, annotation)),
       ),
     );
 
@@ -206,7 +212,7 @@ class _ChromeSlide extends StatelessWidget {
   }
 }
 
-enum _MenuAction { contents, pages, goToPage, details }
+enum _MenuAction { contents, pages, goToPage, annotations, details }
 
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.controller});
@@ -295,6 +301,10 @@ class _TopBar extends StatelessWidget {
                       ),
                     ],
                     const PopupMenuItem(
+                      value: _MenuAction.annotations,
+                      child: Text('Highlights & notes'),
+                    ),
+                    const PopupMenuItem(
                       value: _MenuAction.details,
                       child: Text('Document details'),
                     ),
@@ -318,6 +328,8 @@ class _TopBar extends StatelessWidget {
         if (paged != null) unawaited(showPagesSheet(context, paged));
       case _MenuAction.goToPage:
         if (paged != null) unawaited(showGoToPageDialog(context, paged));
+      case _MenuAction.annotations:
+        unawaited(showAnnotationsSheet(context, controller));
       case _MenuAction.details:
         unawaited(context.push(Routes.document(document.id)));
     }

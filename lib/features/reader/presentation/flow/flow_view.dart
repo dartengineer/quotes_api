@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/theme/reader_palette.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../domain/annotation.dart';
 import '../../domain/locator.dart';
 import '../../domain/reader_preferences.dart';
 import '../../domain/search_hit.dart';
@@ -57,6 +58,14 @@ class _FlowViewState extends State<FlowView> implements ReaderNavigator {
   TextRange? _highlight;
   Timer? _highlightTimer;
 
+  /// Text being selected (global offsets), or awaiting the user's choice.
+  TextRange? _selection;
+  bool _selecting = false;
+  TextRange _selectionStartWord = TextRange.empty;
+
+  /// Annotations resolved to global offsets, in document order.
+  List<_Marked> _marked = const [];
+
   FlowDocument get _doc => widget.document;
   ReaderViewConfig get _config => widget.config;
 
@@ -65,7 +74,21 @@ class _FlowViewState extends State<FlowView> implements ReaderNavigator {
     super.initState();
     _config.controller.attach(this);
     final initial = _config.initialLocator;
+    _marked = _resolveAnnotations();
     _anchorAt(initial == null ? 0 : _doc.offsetOf(initial) ?? 0);
+  }
+
+  List<_Marked> _resolveAnnotations() {
+    final marked = <_Marked>[];
+    for (final annotation in _config.annotations) {
+      final range = annotation.range;
+      if (range is! TextRangeAnchor) continue;
+      final start = _doc.offsetOf(range.start);
+      final end = _doc.offsetOf(range.end);
+      if (start == null || end == null || end <= start) continue;
+      marked.add(_Marked(start, end, annotation));
+    }
+    return marked..sort((a, b) => a.start.compareTo(b.start));
   }
 
   @override
@@ -74,6 +97,10 @@ class _FlowViewState extends State<FlowView> implements ReaderNavigator {
     if (!identical(oldWidget.config.controller, _config.controller)) {
       oldWidget.config.controller.detach(this);
       _config.controller.attach(this);
+    }
+    if (!identical(oldWidget.config.annotations, _config.annotations) ||
+        !identical(oldWidget.document, widget.document)) {
+      _marked = _resolveAnnotations();
     }
     final before = oldWidget.config.preferences;
     final after = _config.preferences;
@@ -337,6 +364,7 @@ class _FlowViewState extends State<FlowView> implements ReaderNavigator {
 
   void _onTapUp(TapUpDetails details) {
     if (_followLink(details.globalPosition)) return;
+    if (_openAnnotation(details.globalPosition)) return;
     final box = _viewportKey.currentContext?.findRenderObject();
     if (box is! RenderBox) return;
     final fraction = details.localPosition.dy / box.size.height;
@@ -382,6 +410,118 @@ class _FlowViewState extends State<FlowView> implements ReaderNavigator {
     return false;
   }
 
+  /// The text under [globalPosition]: its block, the laid-out paragraph and
+  /// the character offset within the block. Positions beside a line count as
+  /// its nearest character.
+  ({int index, RenderParagraph paragraph, int offset, Offset local})? _textAt(
+    Offset globalPosition,
+  ) {
+    for (final MapEntry(key: index, value: block) in _mounted.entries) {
+      final paragraph = block.paragraph;
+      if (paragraph == null || !paragraph.attached || !paragraph.hasSize) {
+        continue;
+      }
+      final local = paragraph.globalToLocal(globalPosition);
+      if (local.dy < 0 || local.dy > paragraph.size.height) continue;
+      final offset = paragraph.getPositionForOffset(local).offset;
+      return (index: index, paragraph: paragraph, offset: offset, local: local);
+    }
+    return null;
+  }
+
+  /// Whether the glyph at [offset] (or just before it) is under [local].
+  static int? _glyphUnder(RenderParagraph paragraph, int offset, Offset local) {
+    for (final candidate in [offset, offset - 1]) {
+      if (candidate < 0) continue;
+      final boxes = paragraph.getBoxesForSelection(
+        TextSelection(baseOffset: candidate, extentOffset: candidate + 1),
+      );
+      if (boxes.any((b) => b.toRect().inflate(6).contains(local))) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  /// Opens the highlight under [globalPosition], if there is one.
+  bool _openAnnotation(Offset globalPosition) {
+    final onTap = _config.onAnnotationTap;
+    if (onTap == null || _marked.isEmpty) return false;
+    final hit = _textAt(globalPosition);
+    if (hit == null) return false;
+    final local = _glyphUnder(hit.paragraph, hit.offset, hit.local);
+    if (local == null) return false;
+    final offset = _doc.blockStart(hit.index) + local;
+    for (final marked in _marked.reversed) {
+      if (marked.start <= offset && offset < marked.end) {
+        onTap(marked.annotation);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// The word around [offset] of block [index], as global offsets.
+  TextRange _wordAt(int index, RenderParagraph paragraph, int offset) {
+    final start = _doc.blockStart(index);
+    final length = _doc.blockEnd(index) - start;
+    final word = paragraph.getWordBoundary(
+      TextPosition(offset: offset.clamp(0, length)),
+    );
+    final from = word.start.clamp(0, length);
+    var to = word.end.clamp(from, length);
+    if (to == from && to < length) to++;
+    return TextRange(start: start + from, end: start + to);
+  }
+
+  void _onLongPressStart(LongPressStartDetails details) {
+    final hit = _textAt(details.globalPosition);
+    if (hit == null) return;
+    final word = _wordAt(hit.index, hit.paragraph, hit.offset);
+    if (word.isCollapsed) return;
+    _selecting = true;
+    _selectionStartWord = word;
+    setState(() => _selection = word);
+  }
+
+  void _onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
+    if (!_selecting) return;
+    final hit = _textAt(details.globalPosition);
+    if (hit == null) return;
+    final word = _wordAt(hit.index, hit.paragraph, hit.offset);
+    final first = _selectionStartWord;
+    // Extend by whole words, towards wherever the finger is.
+    final next = word.start < first.start
+        ? TextRange(start: word.start, end: first.end)
+        : TextRange(
+            start: first.start,
+            end: word.end > first.end ? word.end : first.end,
+          );
+    if (next != _selection) setState(() => _selection = next);
+  }
+
+  Future<void> _onLongPressEnd(LongPressEndDetails details) async {
+    if (!_selecting) return;
+    _selecting = false;
+    final selection = _selection;
+    final onSelection = _config.onSelection;
+    if (selection == null || onSelection == null) return;
+    final text = _doc.textBetween(selection.start, selection.end);
+    if (text.trim().isNotEmpty) {
+      await onSelection(
+        AnnotationDraft(
+          range: TextRangeAnchor(
+            start: _doc.locatorAt(selection.start),
+            end: _doc.locatorAt(selection.end),
+          ),
+          progress: _doc.progressAt(selection.start),
+          text: text,
+        ),
+      );
+    }
+    if (mounted) setState(() => _selection = null);
+  }
+
   // --- Building -------------------------------------------------------------
 
   @override
@@ -415,9 +555,13 @@ class _FlowViewState extends State<FlowView> implements ReaderNavigator {
           });
         }
         _lastWidth = width;
+        final selectable = _config.onSelection != null;
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapUp: _onTapUp,
+          onLongPressStart: selectable ? _onLongPressStart : null,
+          onLongPressMoveUpdate: selectable ? _onLongPressMoveUpdate : null,
+          onLongPressEnd: selectable ? _onLongPressEnd : null,
           child: NotificationListener<ScrollNotification>(
             onNotification: _onScroll,
             child: Opacity(
@@ -495,15 +639,35 @@ class _FlowViewState extends State<FlowView> implements ReaderNavigator {
         );
       default:
         final start = _doc.blockStart(index);
-        final highlight = _highlight;
-        TextRange? local;
-        if (highlight != null &&
-            highlight.end > start &&
-            highlight.start < _doc.blockEnd(index)) {
-          local = TextRange(
-            start: (highlight.start - start).clamp(0, highlight.end),
-            end: highlight.end - start,
+        final end = _doc.blockEnd(index);
+        // Background marks, later ones drawn over earlier ones.
+        final marks = <_Mark>[];
+        void mark(int from, int to, Color color, {bool note = false}) {
+          if (to <= start || from >= end) return;
+          marks.add(
+            _Mark(
+              (from - start).clamp(0, end - start),
+              (to - start).clamp(0, end - start),
+              color,
+              note: note,
+            ),
           );
+        }
+
+        for (final marked in _marked) {
+          if (marked.start >= end) break;
+          mark(
+            marked.start,
+            marked.end,
+            styles.highlightColor(marked.annotation.color),
+            note: marked.annotation.hasNote,
+          );
+        }
+        if (_highlight case final highlight?) {
+          mark(highlight.start, highlight.end, styles.palette.highlight);
+        }
+        if (_selection case final selection?) {
+          mark(selection.start, selection.end, styles.selectionColor);
         }
         final indent = switch (block.kind) {
           BlockKind.quote => styles.indent * block.level.clamp(1, 4),
@@ -518,7 +682,7 @@ class _FlowViewState extends State<FlowView> implements ReaderNavigator {
             block.continues ? 0 : styles.spacingAfter(block),
           ),
           child: RichText(
-            text: styles.span(_doc.blockText(index), block, local),
+            text: styles.span(_doc.blockText(index), block, marks),
             textAlign: styles.align(block),
             textScaler: styles.textScaler,
           ),
@@ -588,12 +752,19 @@ class _BlockStyles {
     _ => base,
   };
 
-  /// The block's text with its inline styles and an optional highlight
+  /// Translucent highlight colours that keep text readable on every theme.
+  Color highlightColor(HighlightColor color) =>
+      Color(color.argb).withValues(alpha: palette.isDark ? 0.4 : 0.5);
+
+  Color get selectionColor =>
+      palette.isDark ? const Color(0x664F8BFF) : const Color(0x553B82F6);
+
+  /// The block's text with its inline styles and background [marks]
   /// (relative to the block).
-  TextSpan span(String text, ContentBlock block, TextRange? highlight) {
+  TextSpan span(String text, ContentBlock block, List<_Mark> marks) {
     final blockStyle = styleFor(block);
     final runs = block.runs;
-    if (runs.isEmpty && highlight == null) {
+    if (runs.isEmpty && marks.isEmpty) {
       return TextSpan(text: text, style: blockStyle);
     }
     final cuts = <int>{0, text.length};
@@ -602,10 +773,10 @@ class _BlockStyles {
         ..add(run.start.clamp(0, text.length))
         ..add(run.end.clamp(0, text.length));
     }
-    if (highlight != null) {
+    for (final mark in marks) {
       cuts
-        ..add(highlight.start.clamp(0, text.length))
-        ..add(highlight.end.clamp(0, text.length));
+        ..add(mark.start.clamp(0, text.length))
+        ..add(mark.end.clamp(0, text.length));
     }
     final points = cuts.toList()..sort();
     final children = <TextSpan>[];
@@ -620,23 +791,35 @@ class _BlockStyles {
       final run = runIndex < runs.length && runs[runIndex].start <= from
           ? runs[runIndex]
           : null;
-      final highlighted =
-          highlight != null && from >= highlight.start && to <= highlight.end;
+      Color? background;
+      var note = false;
+      for (final mark in marks) {
+        if (mark.start <= from && to <= mark.end) {
+          background = mark.color;
+          note = note || mark.note;
+        }
+      }
       children.add(
         TextSpan(
           text: text.substring(from, to),
-          style: _inline(run, highlighted, blockStyle),
+          style: _inline(run, background, note, blockStyle),
         ),
       );
     }
     return TextSpan(style: blockStyle, children: children);
   }
 
-  TextStyle? _inline(StyledRun? run, bool highlighted, TextStyle blockStyle) {
-    if (run == null && !highlighted) return null;
+  TextStyle? _inline(
+    StyledRun? run,
+    Color? background,
+    bool note,
+    TextStyle blockStyle,
+  ) {
+    if (run == null && background == null) return null;
     final style = run?.style ?? 0;
+    final link = run?.link != null;
     final decorations = <TextDecoration>[
-      if (style & InlineStyle.underline != 0 || run?.link != null)
+      if (style & InlineStyle.underline != 0 || link || note)
         TextDecoration.underline,
       if (style & InlineStyle.strikethrough != 0) TextDecoration.lineThrough,
     ];
@@ -654,10 +837,31 @@ class _BlockStyles {
       decoration: decorations.isEmpty
           ? null
           : TextDecoration.combine(decorations),
-      decorationColor: run?.link != null ? palette.secondaryText : null,
-      backgroundColor: highlighted ? palette.highlight : null,
+      // Notes are marked with a dotted underline; links with a solid one.
+      decorationStyle: note && !link ? TextDecorationStyle.dotted : null,
+      decorationColor: link || note ? palette.secondaryText : null,
+      backgroundColor: background,
     );
   }
+}
+
+/// A background colour over part of a block's text.
+class _Mark {
+  const _Mark(this.start, this.end, this.color, {this.note = false});
+
+  final int start;
+  final int end;
+  final Color color;
+  final bool note;
+}
+
+/// An annotation's global character range.
+class _Marked {
+  const _Marked(this.start, this.end, this.annotation);
+
+  final int start;
+  final int end;
+  final Annotation annotation;
 }
 
 /// One block. Registers itself while mounted so the view can find the

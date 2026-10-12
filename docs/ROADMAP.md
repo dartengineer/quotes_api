@@ -208,9 +208,37 @@ yet; see the risks section of [AUDIT.md](AUDIT.md).
 
 ## M6 - Annotations
 
-- [ ] Highlights and notes for TXT and EPUB (character ranges)
-- [ ] PDF highlights as overlays from page text character ranges
-- [ ] Annotation list, edit, delete, export
+- [x] Annotation model: ranges stored as versioned JSON in the existing
+      `annotations` table (no migration): character ranges as start/end
+      locators for TXT and EPUB; for PDF, rectangles on each page in
+      normalised page coordinates (stable whatever text extraction does),
+      with the selected text kept alongside. Malformed rows are skipped,
+      coordinates clamped, stored text and notes bounded (10,000 characters,
+      never cutting a surrogate pair); annotations go with their document
+- [x] TXT and EPUB: long-press selects a word, dragging extends the
+      selection word by word (across paragraphs and chapters); then
+      highlight in one of four colours, add a note, or copy
+- [x] Highlights drawn translucently on every theme; a dotted underline
+      marks a note; tapping highlighted text opens it (precise glyph hit
+      test, like links)
+- [x] PDF: pdfrx's selection (long-press, handles) gains "Highlight…";
+      highlights are painted over the pages, a dot marks a note, tapping a
+      highlight opens it
+- [x] Respect for PDF permissions: when a PDF forbids copying text,
+      neither "Highlight…" nor "Copy" is offered. pdfrx 2.6.5's own check
+      reads the wrong permission bit (printing instead of copying), so the
+      permission is read directly (PDF 32000-1, table 22, bit 5)
+- [x] Edit a highlight: change colour, add or edit its note, copy it,
+      delete it (with undo)
+- [x] "Highlights & notes" list in reading order (colour, text, note,
+      page or percentage); tapping one jumps to it
+- [x] Export to Markdown through the system "save as" dialog (the user
+      picks the place; no permission; nothing leaves the device otherwise)
+- [ ] Selection handles for TXT/EPUB and selecting beyond the visible
+      screen (selection is long-press and drag within the screen for now)
+- [ ] Highlights in rotated PDF pages: drawing accounts for rotation, but
+      tapping a highlight on a rotated page is untested
+- [ ] Notes overview across the whole library
 
 ## M7 - Hardening
 

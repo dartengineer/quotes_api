@@ -8,9 +8,11 @@ import '../../../data/files/library_storage.dart';
 import '../../library/data/library_repository.dart';
 import '../../library/domain/library_document.dart';
 import '../../settings/data/settings_repository.dart';
+import '../data/annotation_repository.dart';
 import '../data/bookmark_repository.dart';
 import '../data/reading_progress_repository.dart';
 import '../data/reading_session_tracker.dart';
+import '../domain/annotation.dart';
 import '../domain/bookmark.dart';
 import '../domain/locator.dart';
 import '../domain/reader_preferences.dart';
@@ -33,6 +35,7 @@ class ReaderState extends Equatable {
     this.initialLocator,
     this.position,
     this.bookmarks = const [],
+    this.annotations = const [],
     this.preferences = const ReaderPreferences(),
     this.chromeVisible = false,
   });
@@ -49,6 +52,9 @@ class ReaderState extends Equatable {
   /// The latest position reported by the view.
   final ReaderPosition? position;
   final List<Bookmark> bookmarks;
+
+  /// Highlights and notes, in reading order.
+  final List<Annotation> annotations;
   final ReaderPreferences preferences;
 
   /// Whether the toolbars are shown. Documents open full-screen so the
@@ -69,6 +75,7 @@ class ReaderState extends Equatable {
     Locator? initialLocator,
     ReaderPosition? position,
     List<Bookmark>? bookmarks,
+    List<Annotation>? annotations,
     ReaderPreferences? preferences,
     bool? chromeVisible,
   }) {
@@ -79,6 +86,7 @@ class ReaderState extends Equatable {
       initialLocator: initialLocator ?? this.initialLocator,
       position: position ?? this.position,
       bookmarks: bookmarks ?? this.bookmarks,
+      annotations: annotations ?? this.annotations,
       preferences: preferences ?? this.preferences,
       chromeVisible: chromeVisible ?? this.chromeVisible,
     );
@@ -92,6 +100,7 @@ class ReaderState extends Equatable {
     initialLocator,
     position,
     bookmarks,
+    annotations,
     preferences,
     chromeVisible,
   ];
@@ -105,6 +114,7 @@ class ReaderCubit extends Cubit<ReaderState> {
     required this._library,
     required this._progress,
     required this._bookmarks,
+    required this._annotations,
     required this._settings,
     required this._storage,
     this._clock,
@@ -116,12 +126,14 @@ class ReaderCubit extends Cubit<ReaderState> {
   final LibraryRepository _library;
   final ReadingProgressRepository _progress;
   final BookmarkRepository _bookmarks;
+  final AnnotationRepository _annotations;
   final SettingsRepository _settings;
   final LibraryStorage _storage;
   final DateTime Function()? _clock;
 
   ReadingSessionTracker? _tracker;
   StreamSubscription<List<Bookmark>>? _bookmarkSubscription;
+  StreamSubscription<List<Annotation>>? _annotationSubscription;
 
   Future<void> _open() async {
     try {
@@ -165,6 +177,13 @@ class ReaderCubit extends Cubit<ReaderState> {
             (bookmarks) => emit(state.copyWith(bookmarks: bookmarks)),
             onError: (Object error, StackTrace stackTrace) =>
                 AppLog.error('Watching bookmarks failed', error, stackTrace),
+          );
+      _annotationSubscription = _annotations
+          .watchAnnotations(documentId)
+          .listen(
+            (annotations) => emit(state.copyWith(annotations: annotations)),
+            onError: (Object error, StackTrace stackTrace) =>
+                AppLog.error('Watching annotations failed', error, stackTrace),
           );
 
       emit(
@@ -243,6 +262,26 @@ class ReaderCubit extends Cubit<ReaderState> {
 
   Future<void> deleteBookmark(int id) => _bookmarks.deleteBookmark(id);
 
+  /// Saves a highlight (with an optional note); returns its id.
+  Future<int> addAnnotation(
+    AnnotationDraft draft, {
+    HighlightColor color = HighlightColor.yellow,
+    String? note,
+  }) => _annotations.addAnnotation(
+    documentId: documentId,
+    draft: draft,
+    color: color,
+    note: note,
+  );
+
+  Future<void> setAnnotationNote(int id, String? note) =>
+      _annotations.updateNote(id, note);
+
+  Future<void> setAnnotationColor(int id, HighlightColor color) =>
+      _annotations.updateColor(id, color);
+
+  Future<void> deleteAnnotation(int id) => _annotations.deleteAnnotation(id);
+
   /// Applies settings immediately without saving (while a slider moves).
   void previewPreferences(ReaderPreferences preferences) {
     emit(state.copyWith(preferences: preferences));
@@ -270,6 +309,7 @@ class ReaderCubit extends Cubit<ReaderState> {
     // cancelled synchronously.
     final tracker = _tracker?.close();
     await _bookmarkSubscription?.cancel();
+    await _annotationSubscription?.cancel();
     await tracker;
     return super.close();
   }
